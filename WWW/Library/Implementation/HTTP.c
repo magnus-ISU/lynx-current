@@ -1,8 +1,8 @@
 /*
- * $LynxId: HTTP.c,v 1.135 2014/01/11 16:52:29 tom Exp $
+ * $LynxId: HTTP.c,v 1.180 2021/08/07 14:33:59 tom Exp $
  *
- * HyperText Tranfer Protocol	- Client implementation		HTTP.c
- * ==========================
+ * HyperText Transfer Protocol	- Client implementation		HTTP.c
+ * ===========================
  * Modified:
  * 27 Jan 1994	PDM  Added Ari Luotonen's Fix for Reload when using proxy
  *		     servers.
@@ -16,8 +16,6 @@
 #ifdef USE_SSL
 #include <HTNews.h>
 #endif
-
-#define HTTP_VERSION	"HTTP/1.0"
 
 #define HTTP_PORT   80
 #define HTTPS_PORT  443
@@ -45,15 +43,47 @@
 #include <LYUtils.h>
 #include <LYrcFile.h>
 #include <LYLeaks.h>
+#include <LYCurses.h>
 
 #ifdef USE_SSL
+
 #ifdef USE_OPENSSL_INCL
 #include <openssl/x509v3.h>
 #endif
+
+#if defined(LIBRESSL_VERSION_NUMBER)
+/* OpenSSL and LibreSSL version numbers do not correspond */
+
+#if LIBRESSL_VERSION_NUMBER >= 0x2060100fL
+#define SSL_set_no_TLSV1()		SSL_set_min_proto_version(handle, TLS1_1_VERSION)
+#endif
+
+#elif defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+
+#define SSLEAY_VERSION_NUMBER		OPENSSL_VERSION_NUMBER
+#undef  SSL_load_error_strings
+#undef  SSLeay_add_ssl_algorithms
+#define ASN1_STRING_data		ASN1_STRING_get0_data
+#define TLS_client_method()		SSLv23_client_method()
+#define SSL_load_error_strings()	/* nothing */
+#define SSLeay_add_ssl_algorithms()	/* nothing */
+#define SSL_set_no_TLSV1()		SSL_set_min_proto_version(handle, TLS1_1_VERSION)
+
+#elif defined(SSLEAY_VERSION_NUMBER)
+
+#define TLS_client_method()		SSLv23_client_method()
+
+#endif
+
+#ifndef SSL_set_no_TLSV1
+#define SSL_set_no_TLSV1()		SSL_set_options(handle, SSL_OP_NO_TLSv1)
+#endif
+
 #ifdef USE_GNUTLS_INCL
 #include <gnutls/x509.h>
 #endif
-#endif
+
+#endif /* USE_SSL */
 
 BOOLEAN reloading = FALSE;	/* Reloading => send no-cache pragma to proxy */
 char *redirecting_url = NULL;	/* Location: value. */
@@ -69,6 +99,60 @@ static void free_ssl_ctx(void)
 {
     if (ssl_ctx != NULL)
 	SSL_CTX_free(ssl_ctx);
+}
+
+static BOOL needs_limit(const char *actual)
+{
+    return ((int) strlen(actual) > LYcols - 7) ? TRUE : FALSE;
+}
+
+static char *limited_string(const char *source, const char *actual)
+{
+    int limit = ((int) strlen(source)
+		 - ((int) strlen(actual) - (LYcols - 10)));
+    char *temp = NULL;
+
+    StrAllocCopy(temp, source);
+    if (limit < 0)
+	limit = 0;
+    strcpy(temp + limit, "...");
+    return temp;
+}
+
+/*
+ * If the error message is too long to fit in the line, truncate that to fit
+ * within the limits for prompting.
+ */
+static void SSL_single_prompt(char **target, const char *source)
+{
+    HTSprintf0(target, SSL_FORCED_PROMPT, source);
+    if (needs_limit(*target)) {
+	char *temp = limited_string(source, *target);
+
+	*target = NULL;
+	HTSprintf0(target, SSL_FORCED_PROMPT, temp);
+	free(temp);
+    }
+}
+
+static void SSL_double_prompt(char **target, const char *format, const char
+			      *arg1, const char *arg2)
+{
+    HTSprintf0(target, format, arg1, arg2);
+    if (needs_limit(*target)) {
+	char *parg2 = limited_string(arg2, *target);
+
+	*target = NULL;
+	HTSprintf0(target, format, arg1, parg2);
+	if (needs_limit(*target)) {
+	    char *parg1 = limited_string(arg1, *target);
+
+	    *target = NULL;
+	    HTSprintf0(target, format, parg1, parg2);
+	    free(parg1);
+	}
+	free(parg2);
+    }
 }
 
 static int HTSSLCallback(int preverify_ok, X509_STORE_CTX * x509_ctx GCC_UNUSED)
@@ -88,10 +172,10 @@ static int HTSSLCallback(int preverify_ok, X509_STORE_CTX * x509_ctx GCC_UNUSED)
 #ifndef USE_NSS_COMPAT_INCL
     if (!(preverify_ok || ssl_okay || ssl_noprompt)) {
 #ifdef USE_X509_SUPPORT
-	HTSprintf0(&msg, SSL_FORCED_PROMPT,
-		   X509_verify_cert_error_string((long)
-						 X509_STORE_CTX_get_error(x509_ctx)));
-	if (HTForcedPrompt(ssl_noprompt, msg, YES))
+	SSL_single_prompt(&msg,
+			  X509_verify_cert_error_string((long)
+							X509_STORE_CTX_get_error(x509_ctx)));
+	if (HTForcedPrompt(ssl_noprompt, msg, NO))
 	    ssl_okay = 1;
 	else
 	    result = 0;
@@ -108,29 +192,40 @@ SSL *HTGetSSLHandle(void)
 #ifdef USE_GNUTLS_INCL
     static char *certfile = NULL;
 #endif
+    static char *client_keyfile = NULL;
+    static char *client_certfile = NULL;
 
     if (ssl_ctx == NULL) {
 	/*
 	 * First time only.
 	 */
 #if SSLEAY_VERSION_NUMBER < 0x0800
-	ssl_ctx = SSL_CTX_new();
-	X509_set_default_verify_paths(ssl_ctx->cert);
+	if ((ssl_ctx = SSL_CTX_new()) != NULL) {
+	    X509_set_default_verify_paths(ssl_ctx->cert);
+	}
 #else
 	SSLeay_add_ssl_algorithms();
-	ssl_ctx = SSL_CTX_new(SSLv23_client_method());
-	SSL_CTX_set_options(ssl_ctx, SSL_OP_ALL | SSL_OP_NO_SSLv2);
+	if ((ssl_ctx = SSL_CTX_new(TLS_client_method())) != NULL) {
+#ifdef SSL_OP_NO_SSLv2
+	    SSL_CTX_set_options(ssl_ctx, SSL_OP_ALL | SSL_OP_NO_SSLv2);
+#else
+	    SSL_CTX_set_options(ssl_ctx, SSL_OP_ALL);
+#endif
 #ifdef SSL_OP_NO_COMPRESSION
-	SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_COMPRESSION);
+	    SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_COMPRESSION);
+#endif
+#ifdef SSL_MODE_AUTO_RETRY
+	    SSL_CTX_set_mode(ssl_ctx, SSL_MODE_AUTO_RETRY);
 #endif
 #ifdef SSL_MODE_RELEASE_BUFFERS
-	SSL_CTX_set_mode(ssl_ctx, SSL_MODE_RELEASE_BUFFERS);
+	    SSL_CTX_set_mode(ssl_ctx, SSL_MODE_RELEASE_BUFFERS);
 #endif
-	SSL_CTX_set_default_verify_paths(ssl_ctx);
-	SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, HTSSLCallback);
+	    SSL_CTX_set_default_verify_paths(ssl_ctx);
+	    SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, HTSSLCallback);
+	}
 #endif /* SSLEAY_VERSION_NUMBER < 0x0800 */
 #if defined(USE_PROGRAM_DIR) & !defined(USE_GNUTLS_INCL)
-	{
+	if (ssl_ctx != NULL) {
 	    X509_LOOKUP *lookup;
 
 	    lookup = X509_STORE_add_lookup(ssl_ctx->cert_store,
@@ -167,9 +262,35 @@ SSL *HTGetSSLHandle(void)
 #endif
 	atexit(free_ssl_ctx);
     }
+
+    if (non_empty(SSL_client_key_file)) {
+	client_keyfile = SSL_client_key_file;
+	CTRACE((tfp,
+		"HTGetSSLHandle: client key file is set to %s by config SSL_CLIENT_KEY_FILE\n",
+		client_keyfile));
+    }
+
+    if (non_empty(SSL_client_cert_file)) {
+	client_certfile = SSL_client_cert_file;
+	CTRACE((tfp,
+		"HTGetSSLHandle: client cert file is set to %s by config SSL_CLIENT_CERT_FILE\n",
+		client_certfile));
+    }
 #ifdef USE_GNUTLS_INCL
     ssl_ctx->certfile = certfile;
     ssl_ctx->certfile_type = GNUTLS_X509_FMT_PEM;
+    ssl_ctx->client_keyfile = client_keyfile;
+    ssl_ctx->client_keyfile_type = GNUTLS_X509_FMT_PEM;
+    ssl_ctx->client_certfile = client_certfile;
+    ssl_ctx->client_certfile_type = GNUTLS_X509_FMT_PEM;
+#elif SSLEAY_VERSION_NUMBER >= 0x0930
+    if (client_certfile != NULL) {
+	if (client_keyfile == NULL) {
+	    client_keyfile = client_certfile;
+	}
+	SSL_CTX_use_certificate_chain_file(ssl_ctx, client_certfile);
+	SSL_CTX_use_PrivateKey_file(ssl_ctx, client_keyfile, SSL_FILETYPE_PEM);
+    }
 #endif
     ssl_okay = 0;
     return (SSL_new(ssl_ctx));
@@ -213,7 +334,7 @@ void HTSSLInitPRNG(void)
 	lynx_srand((unsigned) seed);
 	while (RAND_status() == 0) {
 	    /* Repeatedly seed the PRNG using the system's random number generator until it has been seeded with enough data */
-	    l = lynx_rand();
+	    l = (long) lynx_rand();
 	    RAND_seed((unsigned char *) &l, (int) sizeof(long));
 	}
 	/* Write a rand_file */
@@ -332,7 +453,7 @@ int ws_netread(int fd, char *buf, int len)
 #define TICK	5
 #define STACK_SIZE	0x2000uL
 
-    InitializeCriticalSection(&critSec_READ);
+    EnterCriticalSection(&critSec_READ);
 
     para.fd = fd;
     para.buf = buf;
@@ -417,27 +538,151 @@ int ws_netread(int fd, char *buf, int len)
 #endif /* _WINDOWS */
 
 /*
+ * RFC-1738 says we can have user/password using these ASCII characters
+ *    safe           = "$" | "-" | "_" | "." | "+"
+ *    extra          = "!" | "*" | "'" | "(" | ")" | ","
+ *    hex            = digit | "A" | "B" | "C" | "D" | "E" | "F" |
+ *                             "a" | "b" | "c" | "d" | "e" | "f"
+ *    escape         = "%" hex hex
+ *    unreserved     = alpha | digit | safe | extra
+ *    uchar          = unreserved | escape
+ *    user           = *[ uchar | ";" | "?" | "&" | "=" ]
+ *    password       = *[ uchar | ";" | "?" | "&" | "=" ]
+ * and we cannot have a password without user, i.e., no leading ":"
+ * and ":", "@", "/" must be encoded, i.e., will not appear as such.
+ *
+ * However, in a URL
+ *    //<user>:<password>@<host>:<port>/<url-path>
+ * valid characters in the host are different, not allowing most of those
+ * punctuation characters.
+ *
+ * RFC-3986 amends this, using
+ *     userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
+ *     unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+ *     reserved      = gen-delims / sub-delims
+ *     gen-delims    = ":" / "/" / "?" / "#" / "[" / "]" / "@"
+ *     sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
+ *                     / "*" / "+" / "," / ";" / "="
+ * and
+ *     host          = IP-literal / IPv4address / reg-name
+ *     reg-name      = *( unreserved / pct-encoded / sub-delims )
+ */
+char *HTSkipToAt(char *host, int *gen_delims)
+{
+    char *result = 0;
+    char *s = host;
+    int pass = 0;
+    int ch;
+    int last = -1;
+
+    *gen_delims = 0;
+    while ((ch = UCH(*s)) != '\0') {
+	if (ch == ':') {
+	    if (pass++)
+		break;
+	} else if (ch == '@') {
+	    if (s != host && last != ':')
+		result = s;
+	    break;
+	} else if (RFC_3986_GEN_DELIMS(ch)) {
+	    *gen_delims += 1;
+	    if (!RFC_3986_GEN_DELIMS(s[1]))
+		break;
+	} else if (ch == '%') {
+	    if (!(isxdigit(UCH(s[1])) && isxdigit(UCH(s[2]))))
+		break;
+	} else if (!(RFC_3986_UNRESERVED(ch) ||
+		     RFC_3986_SUB_DELIMS(ch))) {
+	    break;
+	}
+	++s;
+	last = ch;
+    }
+    return result;
+}
+
+static char *fake_hostname(char *auth)
+{
+    char *result = NULL;
+    char *colon = NULL;
+
+    StrAllocCopy(result, auth);
+    if ((colon = strchr(result, ':')) != 0)
+	*colon = '\0';
+    if (strchr(result, '.') == 0)
+	FREE(result);
+    return result;
+}
+
+/*
  * Strip any username from the given string so we retain only the host.
  */
-static void strip_userid(char *host)
+void strip_userid(char *host, int parse_only)
 {
+    int gen_delims = 0;
     char *p1 = host;
-    char *p2 = StrChr(host, '@');
-    char *fake;
+    char *p2 = HTSkipToAt(host, &gen_delims);
 
     if (p2 != 0) {
-	*p2++ = '\0';
-	if ((fake = HTParse(host, "", PARSE_HOST)) != NULL) {
-	    char *msg = NULL;
+	char *msg = NULL;
+	char *auth = NULL;
+	char *fake = NULL;
+	char *p3 = p2;
+	int sub_delims = 0;
+	int my_delimit = UCH(*p2);
+	int do_trimming = (my_delimit == '@');
 
-	    CTRACE((tfp, "parsed:%s\n", fake));
-	    HTSprintf0(&msg, gettext("Address contains a username: %s"), host);
+	*p2++ = '\0';
+
+	StrAllocCopy(auth, host);
+
+	/*
+	 * Trailing "gen-delims" demonstrates that there is no user/password.
+	 */
+	while ((p3 != host) && RFC_3986_GEN_DELIMS(p3[-1])) {
+	    *(--p3) = '\0';
+	}
+	/*
+	 * While legal, punctuation-only user/password is questionable.
+	 */
+	while ((p3 != host) && RFC_3986_SUB_DELIMS(p3[-1])) {
+	    ++sub_delims;
+	    *(--p3) = '\0';
+	}
+	/*
+	 * Trim trailing "gen-delims" from the real hostname.
+	 */
+	for (p3 = p2; *p3 != '\0'; ++p3) {
+	    if (RFC_3986_GEN_DELIMS(*p3)) {
+		*p3 = '\0';
+		break;
+	    }
+	}
+	CTRACE((tfp, "trim auth:    result:`%s'\n", host));
+
+	if (gen_delims || strcmp(host, auth)) {
+	    do_trimming = !gen_delims;
+	}
+	if (*host == '\0' && sub_delims) {
+	    HTSprintf0(&msg,
+		       gettext("User/password contains only punctuation: %s"),
+		       auth);
+	} else if ((fake = fake_hostname(host)) != NULL) {
+	    HTSprintf0(&msg,
+		       gettext("User/password may be confused with hostname: '%s' (e.g, '%s')"),
+		       auth, fake);
+	}
+	if (msg != 0 && !parse_only)
 	    HTAlert(msg);
-	    FREE(msg);
+	if (do_trimming) {
+	    while ((*p1++ = *p2++) != '\0') {
+		;
+	    }
+	    CTRACE((tfp, "trim host:    result:`%s'\n", host));
 	}
-	while ((*p1++ = *p2++) != '\0') {
-	    ;
-	}
+	FREE(fake);
+	FREE(auth);
+	FREE(msg);
     }
 }
 
@@ -510,8 +755,27 @@ static char *StripIpv6Brackets(char *host)
 	p = host + strlen(host) - 1;
 	if (*p == ']') {
 	    *p = '\0';
-	    ++host;
+	    for (p = host; (p[0] = p[1]) != '\0'; ++p) {
+		;		/* EMPTY */
+	    }
 	}
+    }
+    return host;
+}
+#endif
+
+/*
+ * Remove user/password, if any, from the given host-string.
+ */
+#ifdef USE_SSL
+static char *StripUserAuthents(char *host)
+{
+    char *p = strchr(host, '@');
+
+    if (p != NULL) {
+	char *q = host;
+
+	while ((*q++ = *++p) != '\0') ;
     }
     return host;
 }
@@ -595,7 +859,7 @@ static int HTLoadHTTP(const char *arg,
     unsigned tls_status;
 #endif
 
-#if SSLEAY_VERSION_NUMBER >= 0x0900
+#if (SSLEAY_VERSION_NUMBER >= 0x0900) && !defined(USE_GNUTLS_FUNCS)
     BOOL try_tls = TRUE;
 #endif /* SSLEAY_VERSION_NUMBER >= 0x0900 */
     SSL_handle = NULL;
@@ -712,6 +976,7 @@ static int HTLoadHTTP(const char *arg,
 	/* get host we're connecting to */
 	ssl_host = HTParse(url, "", PARSE_HOST);
 	ssl_host = StripIpv6Brackets(ssl_host);
+	ssl_host = StripUserAuthents(ssl_host);
 #if defined(USE_GNUTLS_FUNCS)
 	ret = gnutls_server_name_set(handle->gnutls_state,
 				     GNUTLS_NAME_DNS,
@@ -720,29 +985,34 @@ static int HTLoadHTTP(const char *arg,
 #elif SSLEAY_VERSION_NUMBER >= 0x0900
 #ifndef USE_NSS_COMPAT_INCL
 	if (!try_tls) {
-	    handle->options |= SSL_OP_NO_TLSv1;
+	    SSL_set_no_TLSV1();
+	    CTRACE((tfp, "...adding SSL_OP_NO_TLSv1\n"));
+	}
 #if OPENSSL_VERSION_NUMBER >= 0x0090806fL && !defined(OPENSSL_NO_TLSEXT)
-	} else {
+	else {
 	    int ret = (int) SSL_set_tlsext_host_name(handle, ssl_host);
 
 	    CTRACE((tfp, "...called SSL_set_tlsext_host_name(%s) ->%d\n",
 		    ssl_host, ret));
-#endif
 	}
+#endif
 #endif
 #endif /* SSLEAY_VERSION_NUMBER >= 0x0900 */
 	HTSSLInitPRNG();
 	status = SSL_connect(handle);
 
 	if (status <= 0) {
-#if SSLEAY_VERSION_NUMBER >= 0x0900
+#if (SSLEAY_VERSION_NUMBER >= 0x0900)
+#if !defined(USE_GNUTLS_FUNCS)
 	    if (try_tls) {
 		_HTProgress(gettext("Retrying connection without TLS."));
 		try_tls = FALSE;
 		if (did_connect)
 		    HTTP_NETCLOSE(s, handle);
 		goto try_again;
-	    } else {
+	    } else
+#endif
+	    {
 		CTRACE((tfp,
 			"HTTP: Unable to complete SSL handshake for '%s', SSL_connect=%d, SSL error stack dump follows\n",
 			url, status));
@@ -778,9 +1048,25 @@ static int HTLoadHTTP(const char *arg,
 					    GNUTLS_VERIFY_DO_NOT_ALLOW_SAME |
 					    GNUTLS_VERIFY_ALLOW_X509_V1_CA_CRT);
 	ret = gnutls_certificate_verify_peers2(handle->gnutls_state, &tls_status);
-	if (ret < 0 || (ret == 0 &&
-			tls_status & GNUTLS_CERT_SIGNER_NOT_FOUND)) {
+	if (ret < 0 || tls_status != 0) {
 	    int flag_continue = 1;
+
+#if GNUTLS_VERSION_NUMBER >= 0x030104
+	    int type;
+	    gnutls_datum_t out;
+
+	    if (ret < 0) {
+		SSL_single_prompt(&msg,
+				  gettext("GnuTLS error when trying to verify certificate."));
+	    } else {
+		type = gnutls_certificate_type_get(handle->gnutls_state);
+		(void) gnutls_certificate_verification_status_print(tls_status,
+								    type,
+								    &out, 0);
+		SSL_single_prompt(&msg, (const char *) out.data);
+		gnutls_free(out.data);
+	    }
+#else
 	    char *msg2;
 
 	    if (ret == 0 && tls_status & GNUTLS_CERT_SIGNER_NOT_FOUND) {
@@ -794,10 +1080,11 @@ static int HTLoadHTTP(const char *arg,
 	    } else {
 		msg2 = gettext("the certificate is not trusted");
 	    }
-	    HTSprintf0(&msg, SSL_FORCED_PROMPT, msg2);
+	    SSL_single_prompt(&msg, msg2);
+#endif
 	    CTRACE((tfp, "HTLoadHTTP: %s\n", msg));
 	    if (!ssl_noprompt) {
-		if (!HTForcedPrompt(ssl_noprompt, msg, YES)) {
+		if (!HTForcedPrompt(ssl_noprompt, msg, NO)) {
 		    flag_continue = 0;
 		}
 	    } else if (ssl_noprompt == FORCE_PROMPT_NO) {
@@ -812,7 +1099,7 @@ static int HTLoadHTTP(const char *arg,
 	}
 #endif
 
-	peer_cert = SSL_get_peer_certificate(handle);
+	peer_cert = (X509 *) SSL_get_peer_certificate(handle);
 #if defined(USE_OPENSSL_INCL) || defined(USE_GNUTLS_FUNCS)
 	X509_NAME_oneline(X509_get_subject_name(peer_cert),
 			  ssl_dn, (int) sizeof(ssl_dn));
@@ -908,8 +1195,10 @@ static int HTLoadHTTP(const char *arg,
 		ret = 0;
 		for (i = 0; !(ret < 0); i++) {
 		    size = sizeof(buf);
-		    ret = gnutls_x509_crt_get_subject_alt_name(cert, i, buf,
-							       &size, NULL);
+		    ret = gnutls_x509_crt_get_subject_alt_name(cert,
+							       (unsigned) i,
+							       buf, &size,
+							       NULL);
 
 		    if (strcasecomp_asterisk(ssl_host, buf) == 0) {
 			status_sslcertcheck = 2;
@@ -985,25 +1274,27 @@ static int HTLoadHTTP(const char *arg,
 
 	/* if an error occurred, format the appropriate message */
 	if (status_sslcertcheck == 0) {
-	    HTSprintf0(&msg, SSL_FORCED_PROMPT,
-		       gettext("Can't find common name in certificate"));
+	    SSL_single_prompt(&msg,
+			      gettext("Can't find common name in certificate"));
 	} else if (status_sslcertcheck == 1) {
-	    HTSprintf0(&msg,
-		       gettext("SSL error:host(%s)!=cert(%s)-Continue?"),
-		       ssl_host, ssl_all_cns);
+	    SSL_double_prompt(&msg,
+			      gettext("SSL error:host(%s)!=cert(%s)-Continue?"),
+			      ssl_host, ssl_all_cns);
 	}
 
 	/* if an error occurred, let the user decide how much he trusts */
 	if (status_sslcertcheck < 2) {
-	    if (!HTForcedPrompt(ssl_noprompt, msg, YES)) {
+	    if (msg == NULL)
+		StrAllocCopy(msg, gettext("SSL error"));
+	    if (!HTForcedPrompt(ssl_noprompt, msg, NO)) {
 		status = HT_NOT_LOADED;
 		FREE(msg);
 		FREE(ssl_all_cns);
 		goto done;
 	    }
-	    HTSprintf0(&msg,
-		       gettext("UNVERIFIED connection to %s (cert=%s)"),
-		       ssl_host, ssl_all_cns ? ssl_all_cns : "NONE");
+	    SSL_double_prompt(&msg,
+			      gettext("UNVERIFIED connection to %s (cert=%s)"),
+			      ssl_host, ssl_all_cns ? ssl_all_cns : "NONE");
 	    _HTProgress(msg);
 	    FREE(msg);
 	}
@@ -1017,6 +1308,8 @@ static int HTLoadHTTP(const char *arg,
 		   SSL_get_cipher(handle));
 	_HTProgress(msg);
 	FREE(msg);
+	FREE(ssl_all_cns);
+	FREE(ssl_host);
     }
 #endif /* USE_SSL */
 
@@ -1064,7 +1357,9 @@ static int HTLoadHTTP(const char *arg,
     }
     if (extensions) {
 	BStrCat0(command, " ");
-	BStrCat0(command, HTTP_VERSION);
+	BStrCat0(command, ((HTprotocolLevel == HTTP_1_0)
+			   ? "HTTP/1.0"
+			   : "HTTP/1.1"));
     }
 
     BStrCat0(command, crlf);	/* CR LF, as in rfc 977 */
@@ -1074,9 +1369,12 @@ static int HTLoadHTTP(const char *arg,
 	char *host = NULL;
 
 	if ((host = HTParse(anAnchor->address, "", PARSE_HOST)) != NULL) {
-	    strip_userid(host);
+	    strip_userid(host, TRUE);
 	    HTBprintf(&command, "Host: %s%c%c", host, CR, LF);
 	    FREE(host);
+	}
+	if (HTprotocolLevel >= HTTP_1_1) {
+	    HTBprintf(&command, "Connection: close%c%c", CR, LF);
 	}
 
 	if (!HTPresentations)
@@ -1159,11 +1457,11 @@ static int HTLoadHTTP(const char *arg,
 	    }
 	}
 
-	if (language && *language) {
+	if (non_empty(language)) {
 	    HTBprintf(&command, "Accept-Language: %s%c%c", language, CR, LF);
 	}
 
-	if (pref_charset && *pref_charset) {
+	if (non_empty(pref_charset)) {
 	    BStrCat0(command, "Accept-Charset: ");
 	    StrAllocCopy(linebuf, pref_charset);
 	    if (linebuf[strlen(linebuf) - 1] == ',')
@@ -1231,7 +1529,7 @@ static int HTLoadHTTP(const char *arg,
 	    }
 	}
 
-	if (personal_mail_address && !LYNoFromHeader) {
+	if (non_empty(personal_mail_address) && !LYNoFromHeader) {
 	    HTBprintf(&command, "From: %s%c%c", personal_mail_address, CR, LF);
 	}
 
@@ -1359,7 +1657,7 @@ static int HTLoadHTTP(const char *arg,
 	     * If we do have a cookie set, add it to the request buffer.  - FM
 	     */
 	    if (cookie != NULL) {
-		if (*cookie != '$') {
+		if (*cookie != '$' && USE_RFC_2965) {
 		    /*
 		     * It's a historical cookie, so signal to the server that
 		     * we support modern cookies.  - FM
@@ -1577,7 +1875,7 @@ static int HTLoadHTTP(const char *arg,
 			    SOCKET_ERRNO == EPIPE) &&
 			   !already_retrying && !do_post) {
 		    /*
-		     * Arrrrgh, HTTP 0/1 compability problem, maybe.
+		     * Arrrrgh, HTTP 0/1 compatibility problem, maybe.
 		     */
 		    CTRACE((tfp,
 			    "HTTP: BONZO Trying again with HTTP0 request.\n"));
@@ -1708,7 +2006,8 @@ static int HTLoadHTTP(const char *arg,
 
 	CTRACE((tfp, "HTTP: Scanned %d fields from line_buffer\n", fields));
 
-	if (http_error_file) {	/* Make the status code externally available */
+	if (non_empty(http_error_file)) {
+	    /* Make the status code externally available */
 	    FILE *error_file;
 
 #ifdef SERVER_STATUS_ONLY
@@ -1746,7 +2045,7 @@ static int HTLoadHTTP(const char *arg,
 	     * Treat all plain text as HTML.  This sucks but its the only
 	     * solution without without looking at content.
 	     */
-	    if (!StrNCmp(HTAtom_name(format_in), "text/plain", 10)) {
+	    if (!StrNCmp(HTAtom_name(format_in), STR_PLAINTEXT, 10)) {
 		CTRACE((tfp, "HTTP: format_in being changed to text/HTML\n"));
 		format_in = WWW_HTML;
 	    }
@@ -1866,7 +2165,7 @@ static int HTLoadHTTP(const char *arg,
 		     * > 206 is unknown.
 		     * All should return something to display.
 		     */
-#if defined(USE_SSL) && !defined(DISABLE_NEWS)
+#if defined(USE_SSL)		/* && !defined(DISABLE_NEWS)  _H */
 		    if (do_connect) {
 			CTRACE((tfp,
 				"HTTP: Proxy tunnel to '%s' established.\n",
@@ -1875,6 +2174,7 @@ static int HTLoadHTTP(const char *arg,
 			url = connect_url;
 			FREE(line_buffer);
 			FREE(line_kept_clean);
+#ifndef DISABLE_NEWS
 			if (!StrNCmp(connect_url, "snews", 5)) {
 			    CTRACE((tfp,
 				    "      Will attempt handshake and snews connection.\n"));
@@ -1882,6 +2182,7 @@ static int HTLoadHTTP(const char *arg,
 							format_out, sink);
 			    goto done;
 			}
+#endif /* DISABLE_NEWS */
 			did_connect = TRUE;
 			already_retrying = TRUE;
 			eol = 0;
@@ -1988,10 +2289,10 @@ static int HTLoadHTTP(const char *arg,
 		/*
 		 * We do not load the file, but read the headers for the
 		 * "Location:", check out that redirecting_url and if it's
-		 * acceptible (e.g., not a telnet URL when we have that
+		 * acceptable (e.g., not a telnet URL when we have that
 		 * disabled), initiate a new fetch.  If that's another
 		 * redirecting_url, we'll repeat the checks, and fetch
-		 * initiations if acceptible, until we reach the actual URL, or
+		 * initiations if acceptable, until we reach the actual URL, or
 		 * the redirection limit set in HTAccess.c is exceeded.  If the
 		 * status was 301 indicating that the relocation is permanent,
 		 * we set the permanent_redirection flag to make it permanent
@@ -2065,7 +2366,9 @@ static int HTLoadHTTP(const char *arg,
 						 length, s, NO)) {
 
 			HTTP_NETCLOSE(s, handle);
-			if (dump_output_immediately && !authentication_info[0]) {
+			if (dump_output_immediately &&
+			    !HTAA_HaveUserinfo(HTParse(arg, "", PARSE_HOST)) &&
+			    !authentication_info[0]) {
 			    fprintf(stderr,
 				    "HTTP: Access authorization required.\n");
 			    fprintf(stderr,
@@ -2289,7 +2592,7 @@ static int HTLoadHTTP(const char *arg,
 #else
 	length = rawlength;
 #endif
-	format_in = HTAtom_for("text/plain");
+	format_in = HTAtom_for(STR_PLAINTEXT);
 
     } else if (doing_redirect) {
 

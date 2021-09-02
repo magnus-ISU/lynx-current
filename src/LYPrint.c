@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYPrint.c,v 1.104 2014/02/04 01:58:51 tom Exp $
+ * $LynxId: LYPrint.c,v 1.109 2021/07/29 20:38:35 tom Exp $
  */
 #include <HTUtils.h>
 #include <HTAccess.h>
@@ -140,13 +140,20 @@ static void SetupFilename(bstring **filename,
     char *cp;
 
     BStrCopy0(*filename, sug_filename);		/* add suggestion info */
-    BStrAlloc(*filename, LY_MAXPATH);	/* FIXME */
+    /*
+     * FIXME: the history-recall still uses fixed-size buffers
+     */
+    if ((*filename)->len >= LY_MAXPATH) {
+	(*filename)->str[LY_MAXPATH - 1] = '\0';
+    } else {
+	BStrAlloc(*filename, LY_MAXPATH);
+    }
     change_sug_filename((*filename)->str);
     if (!(HTisDocumentSource())
 	&& (cp = strrchr((*filename)->str, '.')) != NULL) {
 	format = HTFileFormat((*filename)->str, &encoding, NULL);
 	CTRACE((tfp, "... format %s\n", format->name));
-	if (!strcasecomp(format->name, "text/html") ||
+	if (!strcasecomp(format->name, STR_HTML) ||
 	    !IsUnityEnc(encoding)) {
 	    (*filename)->len = (int) (cp - (*filename)->str);
 	    BStrCat0(*filename, TEXT_SUFFIX);
@@ -308,7 +315,7 @@ static void send_file_to_file(DocInfo *newdoc,
 
   retry:
     SetupFilename(&filename, sug_filename);
-    if (lynx_save_space) {
+    if (non_empty(lynx_save_space)) {
 	BStrCopy0(buffer, lynx_save_space);
 	BStrCat(buffer, filename);
 	BStrCopy(filename, buffer);
@@ -430,7 +437,8 @@ static void send_file_to_file(DocInfo *newdoc,
 	    strncasecomp(disp_charset, "x-", 2) == 0) {
 	} else {
 	    fprintf(outfile_fp,
-		    "<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=%s\">\n\n",
+		    "<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"" STR_HTML
+		    "; charset=%s\">\n\n",
 		    disp_charset);
 	}
     }
@@ -542,7 +550,7 @@ static void send_file_to_mail(DocInfo *newdoc,
 
     if (newdoc->isHEAD) {
 	/*
-	 * Special case for mailing HEAD responce:  this is rather technical
+	 * Special case for mailing HEAD response:  this is rather technical
 	 * information, show URL.
 	 */
 	FREE(subject);
@@ -585,7 +593,7 @@ static void send_file_to_mail(DocInfo *newdoc,
 	     * Add Content-Type, Content-Location, and Content-Base headers for
 	     * HTML source.  - FM
 	     */
-	    fprintf(hfd, "Content-Type: text/html");
+	    fprintf(hfd, "Content-Type: " STR_HTML);
 	    if (disp_charset != NULL) {
 		fprintf(hfd, "; charset=%s\n", disp_charset);
 	    } else {
@@ -600,7 +608,7 @@ static void send_file_to_mail(DocInfo *newdoc,
 	     */
 	    if (disp_charset != NULL) {
 		fprintf(hfd,
-			"Content-Type: text/plain; charset=%s\n",
+			"Content-Type: " STR_PLAINTEXT "; charset=%s\n",
 			disp_charset);
 	    }
 	}
@@ -726,7 +734,7 @@ static void send_file_to_mail(DocInfo *newdoc,
 	 * Add Content-Type, Content-Location, and Content-Base headers for
 	 * HTML source.  - FM
 	 */
-	fprintf(outfile_fp, "Content-Type: text/html");
+	fprintf(outfile_fp, "Content-Type: " STR_HTML);
 	if (disp_charset != NULL) {
 	    fprintf(outfile_fp, "; charset=%s\n", disp_charset);
 	} else {
@@ -739,7 +747,7 @@ static void send_file_to_mail(DocInfo *newdoc,
 	 */
 	if (disp_charset != NULL) {
 	    fprintf(outfile_fp,
-		    "Content-Type: text/plain; charset=%s\n",
+		    "Content-Type: " STR_PLAINTEXT "; charset=%s\n",
 		    disp_charset);
 	}
     }
@@ -1103,7 +1111,7 @@ int printfile(DocInfo *newdoc)
     /*
      * Get the number of lines in the file.
      */
-    if ((cp = strstr(link_info, "lines=")) != NULL) {
+    if ((cp = LYstrstr(link_info, "lines=")) != NULL) {
 	/*
 	 * Terminate prev string here.
 	 */
@@ -1119,24 +1127,24 @@ int printfile(DocInfo *newdoc)
     /*
      * Determine the type.
      */
-    if (strstr(link_info, "LOCAL_FILE")) {
+    if (LYstrstr(link_info, "LOCAL_FILE")) {
 	type = TO_FILE;
-    } else if (strstr(link_info, "TO_SCREEN")) {
+    } else if (LYstrstr(link_info, "TO_SCREEN")) {
 	type = TO_SCREEN;
-    } else if (strstr(link_info, "LPANSI")) {
+    } else if (LYstrstr(link_info, "LPANSI")) {
 	Lpansi = TRUE;
 	type = TO_SCREEN;
-    } else if (strstr(link_info, "MAIL_FILE")) {
+    } else if (LYstrstr(link_info, "MAIL_FILE")) {
 	type = MAIL;
-    } else if (strstr(link_info, "PRINTER")) {
+    } else if (LYstrstr(link_info, "PRINTER")) {
 	type = PRINTER;
 
-	if ((cp = strstr(link_info, "number=")) != NULL) {
+	if ((cp = LYstrstr(link_info, "number=")) != NULL) {
 	    /* number of characters in "number=" */
 	    cp += 7;
 	    printer_number = atoi(cp);
 	}
-	if ((cp = strstr(link_info, "pagelen=")) != NULL) {
+	if ((cp = LYstrstr(link_info, "pagelen=")) != NULL) {
 	    /* number of characters in "pagelen=" */
 	    cp += 8;
 	    pagelen = atoi(cp);

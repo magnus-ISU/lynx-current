@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTMLGen.c,v 1.40 2013/11/28 11:13:46 tom Exp $
+ * $LynxId: HTMLGen.c,v 1.46 2020/01/21 22:02:35 tom Exp $
  *
  *		HTML Generator
  *		==============
@@ -11,7 +11,7 @@
  *		Should convert old XMP, LISTING and PLAINTEXT to PRE.
  *
  *	It is not obvious to me right now whether the HEAD should be generated
- *	from the incomming data or the anchor.	Currently it is from the former
+ *	from the incoming data or the anchor.	Currently it is from the former
  *	which is cleanest.
  */
 
@@ -249,7 +249,7 @@ static void HTMLGen_put_character(HTStructured * me, int c)
 		    *q++ = *p++;
 	    }
 	    me->cleanness = 0;
-	    /* Now we have to check whether ther are any perfectly good breaks
+	    /* Now we have to check whether there are any perfectly good breaks
 	     * which weren't good enough for the last line but may be good
 	     * enough for the next
 	     */
@@ -322,15 +322,16 @@ static int HTMLGen_start_element(HTStructured * me, int element_number,
 #if defined(USE_COLOR_STYLE)
     char *title = NULL;
     char *title_tmp = NULL;
+    const char *name;
 
-    if (LYPreparsedSource) {
+    if (LYPreparsedSource && (name = tag->name) != 0) {
 	char *myHash = NULL;
 
 	/*
 	 * Same logic as in HTML_start_element, copied from there.  - kw
 	 */
-	HTSprintf(&Style_className, ";%s", HTML_dtd.tags[element_number].name);
-	StrAllocCopy(myHash, HTML_dtd.tags[element_number].name);
+	HTSprintf(&Style_className, ";%s", name);
+	StrAllocCopy(myHash, name);
 	if (class_string[0]) {
 	    StrAllocCat(myHash, ".");
 	    StrAllocCat(myHash, class_string);
@@ -338,12 +339,12 @@ static int HTMLGen_start_element(HTStructured * me, int element_number,
 	}
 	class_string[0] = '\0';
 	strtolower(myHash);
-	hcode = hash_code(myHash);
+	hcode = color_style_1(myHash);
 	strtolower(Style_className);
 
 	if (TRACE_STYLE) {
 	    fprintf(tfp, "CSSTRIM:%s -> %d", myHash, hcode);
-	    if (hashStyles[hcode].code != hcode) {
+	    if (!hashStyles[hcode].used) {
 		char *rp = strrchr(myHash, '.');
 
 		fprintf(tfp, " (undefined) %s\n", myHash);
@@ -351,9 +352,9 @@ static int HTMLGen_start_element(HTStructured * me, int element_number,
 		    int hcd;
 
 		    *rp = '\0';	/* trim the class */
-		    hcd = hash_code(myHash);
+		    hcd = color_style_1(myHash);
 		    fprintf(tfp, "CSS:%s -> %d", myHash, hcd);
-		    if (hashStyles[hcd].code != hcd)
+		    if (!hashStyles[hcd].used)
 			fprintf(tfp, " (undefined) %s\n", myHash);
 		    else
 			fprintf(tfp, " ca=%d\n", hashStyles[hcd].color);
@@ -365,7 +366,7 @@ static int HTMLGen_start_element(HTStructured * me, int element_number,
 	if (displayStyles[element_number + STARTAT].color > -2) {
 	    CTRACE2(TRACE_STYLE,
 		    (tfp, "CSSTRIM: start_element: top <%s>\n",
-		     HTML_dtd.tags[element_number].name));
+		     tag->name));
 	    do_cstyle_flush(me);
 	    HText_characterStyle(me->text, hcode, 1);
 	}
@@ -409,7 +410,8 @@ static int HTMLGen_start_element(HTStructured * me, int element_number,
 				(tfp, "CSSTRIM:link=%s\n", title_tmp));
 
 			do_cstyle_flush(me);
-			HText_characterStyle(me->text, hash_code(title_tmp), 1);
+			HText_characterStyle(me->text,
+					     color_style_1(title_tmp), 1);
 		    }
 		}
 #endif
@@ -450,7 +452,7 @@ static int HTMLGen_start_element(HTStructured * me, int element_number,
 	     */
 	    if (title && *title) {
 		do_cstyle_flush(me);
-		HText_characterStyle(me->text, hash_code(title_tmp), 0);
+		HText_characterStyle(me->text, color_style_1(title_tmp), 0);
 		FREE(title_tmp);
 	    }
 	    FREE(title);
@@ -472,7 +474,7 @@ static int HTMLGen_start_element(HTStructured * me, int element_number,
      * Can break after element start.
      */
     if (!me->preformatted && tag->contents != SGML_EMPTY) {
-	if (HTML_dtd.tags[element_number].contents == SGML_ELEMENT)
+	if (tag->contents == SGML_ELEMENT)
 	    allow_break(me, 15, NO);
 	else
 	    allow_break(me, 2, NO);
@@ -488,8 +490,7 @@ static int HTMLGen_start_element(HTStructured * me, int element_number,
 		(tfp, "STYLE:begin_element:ending EMPTY element style\n"));
 	do_cstyle_flush(me);
 	HText_characterStyle(me->text, hcode, STACK_OFF);
-	TrimColorClass(HTML_dtd.tags[element_number].name,
-		       Style_className, &hcode);
+	TrimColorClass(tag->name, Style_className, &hcode);
     }
 #endif /* USE_COLOR_STYLE */
     if (element_number == HTML_OBJECT && tag->contents == SGML_LITTERAL) {
@@ -630,8 +631,6 @@ HTStructured *HTMLGenerator(HTStream *output)
     if (me == NULL)
 	outofmem(__FILE__, "HTMLGenerator");
 
-    assert(me != NULL);
-
     me->isa = &HTMLGeneration;
 
     me->target = output;
@@ -687,7 +686,7 @@ HTStructured *HTMLGenerator(HTStream *output)
  *	-------------------
  *
  *	This object just converts a plain text stream into HTML
- *	It is officially a structured strem but only the stream bits exist.
+ *	It is officially a structured stream but only the stream bits exist.
  *	This is just the easiest way of typecasting all the routines.
  */
 static const HTStructuredClass PlainToHTMLConversion =
@@ -714,8 +713,6 @@ HTStream *HTPlainToHTML(HTPresentation *pres GCC_UNUSED,
 
     if (me == NULL)
 	outofmem(__FILE__, "PlainToHTML");
-
-    assert(me != NULL);
 
     me->isa = (const HTStructuredClass *) &PlainToHTMLConversion;
 

@@ -1,4 +1,4 @@
-/* $LynxId: LYrcFile.c,v 1.92 2013/11/28 11:22:53 tom Exp $ */
+/* $LynxId: LYrcFile.c,v 1.105 2021/07/05 20:29:10 tom Exp $ */
 #include <HTUtils.h>
 #include <HTFTP.h>
 #include <LYUtils.h>
@@ -23,6 +23,12 @@ static Config_Enum tbl_DTD_recovery[] = {
     { "off",		FALSE },
     { "sortasgml",	TRUE },
     { "tagsoup",	FALSE },
+    { NULL,		-1 },
+};
+
+static Config_Enum tbl_HTTP_protocol[] = {
+    { "1.0",		HTTP_1_0 },
+    { "1.1",		HTTP_1_1 },
     { NULL,		-1 },
 };
 
@@ -65,6 +71,16 @@ static Config_Enum tbl_file_sort[] = {
     { NULL,		-1 },
 };
 
+#ifdef USE_IDN2
+static Config_Enum tbl_idna_mode[] = {
+    { "IDNA2003",	LYidna2003 },
+    { "IDNA2008",	LYidna2008 },
+    { "TR46",		LYidnaTR46 },
+    { "Compatible",	LYidnaCompat },
+    { NULL,		-1 },
+};
+#endif
+
 Config_Enum tbl_keypad_mode[] = {
     { "FIELDS_ARE_NUMBERED", FIELDS_ARE_NUMBERED },
     { "LINKS_AND_FIELDS_ARE_NUMBERED", LINKS_AND_FIELDS_ARE_NUMBERED },
@@ -81,6 +97,13 @@ Config_Enum tbl_multi_bookmarks[] = {
     { "STANDARD",	MBM_STANDARD },
     { "ON",		MBM_STANDARD },
     { "ADVANCED",	MBM_ADVANCED },
+    { NULL,		-1 }
+};
+
+Config_Enum tbl_preferred_content[] = {
+    { STR_BINARY,	contentBINARY },
+    { STR_PLAINTEXT,	contentTEXT },
+    { STR_HTML,		contentHTML },
     { NULL,		-1 }
 };
 
@@ -154,6 +177,13 @@ static Config_Enum tbl_visited_links[] = {
     { "LAST_REVERSED",	VISITED_LINKS_AS_LATEST | VISITED_LINKS_REVERSE },
     { "LAST",		VISITED_LINKS_AS_LATEST  },
     { NULL,		DEFAULT_VISITED_LINKS }
+};
+
+Config_Enum tbl_cookie_version[] = {
+    { "RFC-2109",	COOKIES_RFC_2109	},
+    { "RFC-2965",	COOKIES_RFC_2965	},
+    { "RFC-6265",	COOKIES_RFC_6265	},
+    { NULL,		-1			}
 };
 
 Config_Enum tbl_force_prompt[] = {
@@ -303,6 +333,22 @@ static void put_editor(FILE *fp, struct config_type *tbl)
     fprintf(fp, "%s=%s\n\n", tbl->name, NonNull(editor));
 }
 
+int get_http_protocol(char *value)
+{
+    int found = HTprotocolLevel;
+
+    if (LYgetEnum(tbl_HTTP_protocol, value, &found)
+	&& HTprotocolLevel != found) {
+	HTprotocolLevel = found;
+    }
+    return 0;
+}
+
+static void put_http_protocol(FILE *fp, struct config_type *tbl)
+{
+    fprintf(fp, "%s=%s\n\n", tbl->name, LYputEnum(tbl_HTTP_protocol, HTprotocolLevel));
+}
+
 int get_tagsoup(char *value)
 {
     int found = Old_DTD;
@@ -358,6 +404,7 @@ correctly on your screen you may try changing to a different 8 bit\n\
 set or using the 7 bit character approximations.\n\
 Current valid characters sets are:\n\
 ")),
+    MAYBE_SET(RC_COLLAPSE_BR_TAGS,      LYCollapseBRs,      MSG_ENABLE_LYNXRC),
     PARSE_LIS(RC_COOKIE_ACCEPT_DOMAINS, LYCookieAcceptDomains, N_("\
 cookie_accept_domains and cookie_reject_domains are comma-delimited\n\
 lists of domains from which Lynx should automatically accept or reject\n\
@@ -422,6 +469,8 @@ file lists such as FTP directories.  The options are:\n\
 #endif
     MAYBE_ENU(RC_FORCE_COOKIE_PROMPT,   cookie_noprompt,    tbl_force_prompt,
 	      MSG_ENABLE_LYNXRC),
+    MAYBE_ENU(RC_COOKIE_VERSION,        cookie_version,     tbl_cookie_version,
+	      MSG_ENABLE_LYNXRC),
 #ifdef USE_SSL
     MAYBE_ENU(RC_FORCE_SSL_PROMPT,      ssl_noprompt,       tbl_force_prompt,
 	      MSG_ENABLE_LYNXRC),
@@ -430,6 +479,12 @@ file lists such as FTP directories.  The options are:\n\
     MAYBE_SET(RC_FTP_PASSIVE,           ftp_passive,        MSG_ENABLE_LYNXRC),
 #endif
     MAYBE_SET(RC_HTML5_CHARSETS,        html5_charsets,     MSG_ENABLE_LYNXRC),
+    MAYBE_FUN(RC_HTTP_PROTOCOL,         get_http_protocol,  put_http_protocol,
+	      MSG_ENABLE_LYNXRC),
+#ifdef USE_IDN2
+    MAYBE_ENU(RC_IDNA_MODE,             LYidnaMode,         tbl_idna_mode,
+	      MSG_ENABLE_LYNXRC),
+#endif
 #ifdef EXP_KEYBOARD_LAYOUT
     PARSE_ARY(RC_KBLAYOUT,              current_layout,     LYKbLayoutNames, NULL),
 #endif
@@ -491,6 +546,8 @@ according to the Accept-Charset header, then the server SHOULD send\n\
 an error response, though the sending of an unacceptable response\n\
 is also allowed.\n\
 ")),
+    MAYBE_ENU(RC_PREFERRED_CONTENT_TYPE, LYContentType,     tbl_preferred_content,
+	      MSG_ENABLE_LYNXRC),
     MAYBE_ENU(RC_PREFERRED_ENCODING,    LYAcceptEncoding,   tbl_preferred_encoding,
 	      MSG_ENABLE_LYNXRC),
     PARSE_STR(RC_PREFERRED_LANGUAGE,    language, N_("\
@@ -596,6 +653,7 @@ presented regardless of user mode.\n\
 ")),
     MAYBE_FUN(RC_TAGSOUP,               get_tagsoup,        put_tagsoup,
               MSG_ENABLE_LYNXRC),
+    MAYBE_SET(RC_TRIM_BLANK_LINES,      LYtrimBlankLines,   MSG_ENABLE_LYNXRC),
     MAYBE_SET(RC_UNDERLINE_LINKS,       LYUnderlineLinks,   MSG_ENABLE_LYNXRC),
     PARSE_ENU(RC_USER_MODE,             user_mode,          tbl_user_mode, N_("\
 user_mode specifies the users level of knowledge with Lynx.  The\n\
@@ -661,8 +719,12 @@ BOOL LYsetRcValue(const char *name, const char *param)
     ParseUnionPtr q;
     BOOL changed = TRUE;
     char *value = NULL;
+    char *orig_value = NULL;
 
+    if (param == NULL)
+	param = "";
     StrAllocCopy(value, param);
+    orig_value = value;
     value = LYSkipBlanks(value);
     CTRACE2(TRACE_CFG, (tfp, "LYrcFile %s:%s\n", name, value));
 
@@ -679,6 +741,7 @@ BOOL LYsetRcValue(const char *name, const char *param)
 	 */
 	if (tbl->name == 0) {
 	    CTRACE((tfp, "LYrcFile: ignored %s=%s\n", name, value));
+	    FREE(orig_value);
 	    return FALSE;
 	}
     }
@@ -728,7 +791,7 @@ BOOL LYsetRcValue(const char *name, const char *param)
 
     case CONF_MBM:
 	for (n = 1; n <= MBM_V_MAXFILES; n++) {
-	    sprintf(MBM_line, "multi_bookmark%c", LYindex2MBM(n));
+	    sprintf(MBM_line, "multi_bookmark%c", UCH(LYindex2MBM(n)));
 
 	    if (!strcasecomp(name, MBM_line)) {
 		if ((notes = StrChr(value, ',')) != 0) {
@@ -754,7 +817,7 @@ BOOL LYsetRcValue(const char *name, const char *param)
 	changed = FALSE;
 	break;
     }
-    FREE(value);
+    FREE(orig_value);
 
     return changed;
 }
@@ -1002,7 +1065,7 @@ It is not this file.\n\
 
 	case CONF_MBM:
 	    for (n = 1; n <= MBM_V_MAXFILES; n++) {
-		fprintf(fp, "multi_bookmark%c=", LYindex2MBM(n));
+		fprintf(fp, "multi_bookmark%c=", UCH(LYindex2MBM(n)));
 
 		fprintf(fp, "%s", NonNull(MBM_A_subbookmark[n]));
 		if (MBM_A_subdescript[n] != 0

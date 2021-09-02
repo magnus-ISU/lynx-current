@@ -1,5 +1,5 @@
 /*
- * $LynxId: UCMap.h,v 1.27 2011/12/01 02:00:57 tom Exp $
+ * $LynxId: UCMap.h,v 1.29 2021/06/29 22:01:12 tom Exp $
  */
 #ifndef UCMAP_H
 #define UCMAP_H
@@ -11,6 +11,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define UCS_HIDE 0xffff
+#define UCS_REPL 0xfffd
+
     typedef enum {
 	ucError = -1,
 	ucZeroWidth = -2,
@@ -46,7 +50,7 @@ extern "C" {
 			      int charset_in,
 			      int charset_out,
 			      int chk_single_flag);
-#ifdef EXP_JAPANESEUTF8_SUPPORT
+#ifdef USE_JAPANESEUTF8_SUPPORT
     extern UCode_t UCTransJPToUni(char *inbuf,
 				  int buflen,
 				  int charset_in);

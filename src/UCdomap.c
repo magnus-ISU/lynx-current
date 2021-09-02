@@ -1,5 +1,5 @@
 /*
- * $LynxId: UCdomap.c,v 1.96 2014/02/04 01:29:44 tom Exp $
+ * $LynxId: UCdomap.c,v 1.110 2021/07/01 23:37:52 tom Exp $
  *
  *  UCdomap.c
  *  =========
@@ -7,9 +7,10 @@
  * This is a Lynx chartrans engine, its external calls are in UCMap.h
  *
  * Derived from code in the Linux kernel console driver.
- * The GNU Public Licence therefore applies, see
- * the file COPYING in the top-level directory
- * which should come with every Lynx distribution.
+ *
+ * The GNU General Public License therefore applies, see the file
+ * COPYING in the top-level directory which should come with every Lynx
+ * distribution.
  *
  *  [ original comment: - KW ]
  *
@@ -34,7 +35,7 @@
 #include <langinfo.h>
 #endif
 
-#ifdef EXP_JAPANESEUTF8_SUPPORT
+#ifdef USE_JAPANESEUTF8_SUPPORT
 #include <iconv.h>
 #endif
 
@@ -76,6 +77,7 @@
 #include <iso13_uni.h>		/* ISO 8859-13 (Latin 7) */
 #include <iso14_uni.h>		/* ISO 8859-14 (Latin 8) */
 #include <iso15_uni.h>		/* ISO 8859-15 (Latin 9) */
+#include <iso16_uni.h>		/* ISO 8859-16 (Latin 10) */
 #include <koi8r_uni.h>		/* KOI8-R Cyrillic      */
 #include <mac_uni.h>		/* Macintosh (8 bit)    */
 #include <mnem2_suni.h>		/* RFC 1345 Mnemonic    */
@@ -381,7 +383,7 @@ static void UC_con_set_trans(int UC_charset_in_hndl,
 		p++;
 	    }
 	} else {
-	    ptrans[i] = 0xfffd;
+	    ptrans[i] = UCS_REPL;
 	}
     }
     if (update_flag) {
@@ -456,17 +458,12 @@ static int con_insert_unipair(unsigned unicode, unsigned fontpos, int fordefault
     else
 	p1 = uni_pagedir[n = unicode >> 11];
     if (!p1) {
-	p1 = (u16 * *)malloc(32 * sizeof(u16 *));
+	if ((p1 = typecallocn(u16 *, 32)) == NULL)
+	    return ucError;
 	if (fordefault)
 	    unidefault_pagedir[n] = p1;
 	else
 	    uni_pagedir[n] = p1;
-	if (!p1)
-	    return ucError;
-
-	for (i = 0; i < 32; i++) {
-	    p1[i] = NULL;
-	}
     }
 
     if (!(p2 = p1[n = (unicode >> 6) & 0x1f])) {
@@ -475,7 +472,7 @@ static int con_insert_unipair(unsigned unicode, unsigned fontpos, int fordefault
 	    return ucError;
 
 	for (i = 0; i < 64; i++) {
-	    p2[i] = 0xffff;	/* No glyph for this character (yet) */
+	    p2[i] = UCS_HIDE;	/* No glyph for this character (yet) */
 	}
     }
 
@@ -487,7 +484,6 @@ static int con_insert_unipair(unsigned unicode, unsigned fontpos, int fordefault
 static int con_insert_unipair_str(unsigned unicode, const char *replace_str,
 				  int fordefault)
 {
-    int i;
     unsigned n;
     char ***p1;
     const char **p2;
@@ -497,31 +493,19 @@ static int con_insert_unipair_str(unsigned unicode, const char *replace_str,
     else
 	p1 = uni_pagedir_str[n = unicode >> 11];
     if (!p1) {
-	p1 = (char ***) malloc(32 * sizeof(char **));
+	if ((p1 = typecallocn(char **, 32)) == NULL)
+	      return ucError;
 
 	if (fordefault)
 	    unidefault_pagedir_str[n] = p1;
 	else
 	    uni_pagedir_str[n] = p1;
-	if (!p1)
-	    return ucError;
-
-	for (i = 0; i < 32; i++) {
-	    p1[i] = NULL;
-	}
     }
 
     n = ((unicode >> 6) & 0x1f);
     if (!p1[n]) {
-	p1[n] = (char **) malloc(64 * sizeof(char *));
-
-	if (!p1[n])
-	    return ucError;
-
-	p2 = (const char **) p1[n];
-	for (i = 0; i < 64; i++) {
-	    p2[i] = NULL;	/* No replace string this character (yet) */
-	}
+	if ((p1[n] = typecallocn(char *, 64)) == NULL)
+	      return ucError;
     }
     p2 = (const char **) p1[n];
 
@@ -718,7 +702,7 @@ static int conv_uni_to_pc(long ucs,
 	/*
 	 * U+FFFD:  REPLACEMENT CHARACTER.
 	 */
-	ucs = 0xfffd;
+	ucs = UCS_REPL;
     } else if (ucs < 0x20 || ucs >= 0xfffe) {
 	/*
 	 * Not a printable character.
@@ -779,7 +763,7 @@ static int conv_uni_to_str(char *outbuf,
 	/*
 	 * U+FFFD:  REPLACEMENT CHARACTER.
 	 */
-	ucs = 0xfffd;
+	ucs = UCS_REPL;
 	/*
 	 * Maybe the following two cases should be allowed here??  - KW
 	 */
@@ -881,10 +865,10 @@ int UCTransUniChar(UCode_t unicode,
 	}
     }
     if (!isdefault && (rc == ucNotFound)) {
-	rc = conv_uni_to_pc(0xfffdL, 0);
+	rc = conv_uni_to_pc(UCS_REPL, 0);
     }
     if ((isdefault || trydefault) && (rc == ucNotFound)) {
-	rc = conv_uni_to_pc(0xfffdL, 1);
+	rc = conv_uni_to_pc(UCS_REPL, 1);
     }
     return rc;
 }
@@ -956,7 +940,7 @@ int UCTransUniCharStr(char *outbuf,
 	}
     }
     if (isdefault || trydefault) {
-#ifdef EXP_JAPANESEUTF8_SUPPORT
+#ifdef USE_JAPANESEUTF8_SUPPORT
 	if (LYCharSet_UC[charset_out].codepage == 0 &&
 	    LYCharSet_UC[charset_out].codepoints == 0) {
 	    iconv_t cd;
@@ -1000,7 +984,7 @@ int UCTransUniCharStr(char *outbuf,
 		if ((pout - outbuf) == 3) {
 		    CTRACE((tfp,
 			    "It seems to be a JIS X 0201 code(%" PRI_UCode_t
-			    "). Not supported.\n", unicode));
+			    "). Not supported.\n", CAST_UCode_t (unicode)));
 		    pin = str;
 		    inleft = 2;
 		    pout = outbuf;
@@ -1018,17 +1002,17 @@ int UCTransUniCharStr(char *outbuf,
     }
     if (rc == ucNotFound) {
 	if (!isdefault)
-	    rc = conv_uni_to_str(outbuf, buflen, 0xfffdL, 0);
+	    rc = conv_uni_to_str(outbuf, buflen, UCS_REPL, 0);
 	if ((rc == ucNotFound) && (isdefault || trydefault))
-	    rc = conv_uni_to_str(outbuf, buflen, 0xfffdL, 1);
+	    rc = conv_uni_to_str(outbuf, buflen, UCS_REPL, 1);
 	if (rc >= 0)
 	    return (int) strlen(outbuf);
     }
     if (chk_single_flag && src == ucNotFound) {
 	if (!isdefault)
-	    rc = conv_uni_to_pc(0xfffdL, 0);
+	    rc = conv_uni_to_pc(UCS_REPL, 0);
 	if ((rc == ucNotFound) && (isdefault || trydefault))
-	    rc = conv_uni_to_pc(0xfffdL, 1);
+	    rc = conv_uni_to_pc(UCS_REPL, 1);
 	if (rc >= 32) {
 	    outbuf[0] = (char) rc;
 	    outbuf[1] = '\0';
@@ -1140,15 +1124,15 @@ int UCTransChar(int ch_in,
 	rc = conv_uni_to_pc(unicode, 1);
     }
     if ((rc == ucNotFound) && !isdefault) {
-	rc = conv_uni_to_pc(0xfffdL, 0);
+	rc = conv_uni_to_pc(UCS_REPL, 0);
     }
     if ((rc == ucNotFound) && (isdefault || trydefault)) {
-	rc = conv_uni_to_pc(0xfffdL, 1);
+	rc = conv_uni_to_pc(UCS_REPL, 1);
     }
     return rc;
 }
 
-#ifdef EXP_JAPANESEUTF8_SUPPORT
+#if defined(USE_JAPANESEUTF8_SUPPORT) || defined(EXP_CHINESEUTF8_SUPPORT)
 UCode_t UCTransJPToUni(char *inbuf,
 		       int buflen,
 		       int charset_in)
@@ -1199,7 +1183,7 @@ UCode_t UCTransToUni(int ch_in,
     } else if (charset_in == UTF8_handle) {
 	if (is8bits(ch_iu)) {
 	    unsigned need;
-	    char *ptr;
+	    const char *ptr;
 
 	    buffer[inx++] = (char) ch_iu;
 	    buffer[inx] = '\0';
@@ -1217,7 +1201,7 @@ UCode_t UCTransToUni(int ch_in,
 	    inx = 0;
 	}
     }
-#ifdef EXP_JAPANESEUTF8_SUPPORT
+#ifdef USE_JAPANESEUTF8_SUPPORT
     if ((strcmp(LYCharSet_UC[charset_in].MIMEname, "shift_jis") == 0) ||
 	(strcmp(LYCharSet_UC[charset_in].MIMEname, "euc-jp") == 0)) {
 	char obuffer[3], *pin, *pout;
@@ -1234,6 +1218,16 @@ UCode_t UCTransToUni(int ch_in,
 		    buffer[0] = (char) ch_in;
 		    inx = 1;
 		    return ucNeedMore;
+		} else if (IS_SJIS_X0201KANA(ch_iu)) {
+		    buffer[0] = (char) ch_in;
+		    buffer[1] = 0;
+		    cd = iconv_open("UTF-16BE", "Shift_JIS");
+		    ilen = 1;
+		    (void) iconv(cd, (ICONV_CONST char **) &pin, &ilen, &pout, &olen);
+		    iconv_close(cd);
+		    if ((ilen == 0) && (olen == 0)) {
+			return (UCH(obuffer[0]) << 8) + UCH(obuffer[1]);
+		    }
 		}
 	    } else {
 		if (IS_SJIS_LO(ch_iu)) {
@@ -1252,7 +1246,7 @@ UCode_t UCTransToUni(int ch_in,
 	}
 	if (strcmp(LYCharSet_UC[charset_in].MIMEname, "euc-jp") == 0) {
 	    if (inx == 0) {
-		if (IS_EUC_HI(ch_iu)) {
+		if (IS_EUC_HI(ch_iu) || ch_iu == 0x8E) {
 		    buffer[0] = (char) ch_in;
 		    inx = 1;
 		    return ucNeedMore;
@@ -1453,17 +1447,17 @@ int UCTransCharStr(char *outbuf,
     }
     if (rc == ucNotFound) {
 	if (!isdefault)
-	    rc = conv_uni_to_str(outbuf, buflen, 0xfffdL, 0);
+	    rc = conv_uni_to_str(outbuf, buflen, UCS_REPL, 0);
 	if ((rc == ucNotFound) && (isdefault || trydefault))
-	    rc = conv_uni_to_str(outbuf, buflen, 0xfffdL, 1);
+	    rc = conv_uni_to_str(outbuf, buflen, UCS_REPL, 1);
 	if (rc >= 0)
 	    return (int) strlen(outbuf);
     }
     if (chk_single_flag && src == ucNotFound) {
 	if (!isdefault)
-	    rc = conv_uni_to_pc(0xfffdL, 0);
+	    rc = conv_uni_to_pc(UCS_REPL, 0);
 	if ((rc == ucNotFound) && (isdefault || trydefault))
-	    rc = conv_uni_to_pc(0xfffdL, 1);
+	    rc = conv_uni_to_pc(UCS_REPL, 1);
 	if (rc >= 32) {
 	    outbuf[0] = (char) rc;
 	    outbuf[1] = '\0';
@@ -1577,7 +1571,8 @@ int UCGetLYhndl_byMIME(const char *value)
     }
 #endif
 #if !NO_CHARSET_euc_kr
-    if (!strcasecomp(value, "iso-2022-kr")) {
+    if ((!strcasecomp(value, "iso-2022-kr")) ||
+	(!strcasecomp(value, "ks_c_5601-1987"))) {
 	return UCGetLYhndl_byMIME("euc-kr");
     }
 #endif
@@ -1735,19 +1730,13 @@ static STRING2PTR UC_setup_LYCharSets_repl(int UC_charset_in_hndl,
     /*
      * Create a temporary table for reverse lookup of latin1 codes:
      */
-    tp = (const char **) malloc(96 * sizeof(char *));
+    if ((tp = typecallocn(const char *, 96)) == NULL)
+	  return NULL;
 
-    if (!tp)
-	return NULL;
-    for (i = 0; i < 96; i++)
-	tp[i] = NULL;
-    ti = (u8 *) malloc(96 * sizeof(u8));
-    if (!ti) {
+    if ((ti = typecallocn(u8, 96)) == NULL) {
 	FREE(tp);
 	return NULL;
     }
-    for (i = 0; i < 96; i++)
-	ti[i] = 0;
 
     pp = UCInfo[UC_charset_in_hndl].unitable;
 
@@ -2245,6 +2234,7 @@ void UCInit(void)
     UC_CHARSET_SETUP_iso_8859_9;	/* ISO 8859-9 (Latin 5) */
     UC_CHARSET_SETUP_cp857;	/* DosTurkish (cp857) */
     UC_CHARSET_SETUP_iso_8859_10;	/* ISO 8859-10 North European */
+    UC_CHARSET_SETUP_iso_8859_16;	/* ISO 8859-16 (Latin 10) */
 
     UC_CHARSET_SETUP_utf_8;		  /*** UNICODE UTF-8	  */
     UC_CHARSET_SETUP_mnemonic_ascii_0;	/* RFC 1345 w/o Intro   */

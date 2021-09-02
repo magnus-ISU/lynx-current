@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYrcFile.h,v 1.45 2014/02/12 23:42:24 tom Exp $
+ * $LynxId: LYrcFile.h,v 1.58 2021/07/05 20:23:51 tom Exp $
  */
 #ifndef LYRCFILE_H
 #define LYRCFILE_H
@@ -54,6 +54,7 @@
 #define RC_COOKIE_REJECT_DOMAINS        "cookie_reject_domains"
 #define RC_COOKIE_SAVE_FILE             "cookie_save_file"
 #define RC_COOKIE_STRICT_INVALID_DOMAIN "cookie_strict_invalid_domains"
+#define RC_COOKIE_VERSION               "cookie_version"
 #define RC_COPY_PATH                    "copy_path"
 #define RC_CSO_PROXY                    "cso_proxy"
 #define RC_CSWING_PATH                  "cswing_path"
@@ -98,6 +99,7 @@
 #define RC_GLOBAL_MAILCAP               "global_mailcap"
 #define RC_GOPHER_PROXY                 "gopher_proxy"
 #define RC_GOTOBUFFER                   "gotobuffer"
+#define RC_GUESS_SCHEME                 "guess_scheme"
 #define RC_GZIP_PATH                    "gzip_path"
 #define RC_HELPFILE                     "helpfile"
 #define RC_HIDDENLINKS                  "hiddenlinks"
@@ -107,7 +109,9 @@
 #define RC_HTMLSRC_ATTRNAME_XFORM       "htmlsrc_attrname_xform"
 #define RC_HTMLSRC_TAGNAME_XFORM        "htmlsrc_tagname_xform"
 #define RC_HTTPS_PROXY                  "https_proxy"
+#define RC_HTTP_PROTOCOL                "http_protocol"
 #define RC_HTTP_PROXY                   "http_proxy"
+#define RC_IDNA_MODE                    "idna_mode"
 #define RC_INCLUDE                      "include"
 #define RC_INFLATE_PATH                 "inflate_path"
 #define RC_INFOSECS                     "infosecs"
@@ -124,6 +128,7 @@
 #define RC_LEFTARROW_IN_TEXTFLD_PROMPT  "leftarrow_in_textfield_prompt"
 #define RC_LINEEDIT_MODE                "lineedit_mode"
 #define RC_LISTONLY                     "listonly"
+#define RC_LIST_DECODED                 "list_decoded"
 #define RC_LIST_FORMAT                  "list_format"
 #define RC_LIST_INLINE                  "list_inline"
 #define RC_LIST_NEWS_DATES              "list_news_dates"
@@ -187,6 +192,7 @@
 #define RC_PERSONAL_MAIL_NAME           "personal_mail_name"
 #define RC_POSITIONABLE_EDITOR          "positionable_editor"
 #define RC_PREFERRED_CHARSET            "preferred_charset"
+#define RC_PREFERRED_CONTENT_TYPE       "preferred_content_type"
 #define RC_PREFERRED_ENCODING           "preferred_encoding"
 #define RC_PREFERRED_LANGUAGE           "preferred_language"
 #define RC_PREFERRED_MEDIA_TYPES        "preferred_media_types"
@@ -199,6 +205,7 @@
 #define RC_QUIT_DEFAULT_YES             "quit_default_yes"
 #define RC_RAW_MODE                     "raw_mode"
 #define RC_READ_TIMEOUT                 "read_timeout"
+#define RC_REDIRECTION_LIMIT            "redirection_limit"
 #define RC_REFERER_WITH_QUERY           "referer_with_query"
 #define RC_REPLAYSECS                   "replaysecs"
 #define RC_REUSE_TEMPFILES              "reuse_tempfiles"
@@ -234,6 +241,8 @@
 #define RC_SOURCE_CACHE                 "source_cache"
 #define RC_SOURCE_CACHE_FOR_ABORTED     "source_cache_for_aborted"
 #define RC_SSL_CERT_FILE                "ssl_cert_file"
+#define RC_SSL_CLIENT_CERT_FILE         "ssl_client_cert_file"
+#define RC_SSL_CLIENT_KEY_FILE          "ssl_client_key_file"
 #define RC_STARTFILE                    "startfile"
 #define RC_STATUS_BUFFER_SIZE           "status_buffer_size"
 #define RC_STRIP_DOTDOT_URLS            "strip_dotdot_urls"
@@ -254,6 +263,7 @@
 #define RC_TN3270_PATH                  "tn3270_path"
 #define RC_TOUCH_PATH                   "touch_path"
 #define RC_TRACK_INTERNAL_LINKS         "track_internal_links"
+#define RC_TRIM_BLANK_LINES             "trim_blank_lines"
 #define RC_TRIM_INPUT_FIELDS            "trim_input_fields"
 #define RC_TRUSTED_EXEC                 "trusted_exec"
 #define RC_TRUSTED_LYNXCGI              "trusted_lynxcgi"
@@ -261,6 +271,7 @@
 #define RC_UNDERLINE_LINKS              "underline_links"
 #define RC_UNIQUE_URLS                  "unique_urls"
 #define RC_UNZIP_PATH                   "unzip_path"
+#define RC_UPDATE_TERM_TITLE            "update_term_title"
 #define RC_UPLOADER                     "uploader"
 #define RC_URL_DOMAIN_PREFIXES          "url_domain_prefixes"
 #define RC_URL_DOMAIN_SUFFIXES          "url_domain_suffixes"
@@ -283,9 +294,11 @@
 #define RC_ZCAT_PATH                    "zcat_path"
 #define RC_ZIP_PATH                     "zip_path"
 
+extern Config_Enum tbl_cookie_version[];
 extern Config_Enum tbl_force_prompt[];
 extern Config_Enum tbl_keypad_mode[];
 extern Config_Enum tbl_multi_bookmarks[];
+extern Config_Enum tbl_preferred_content[];
 extern Config_Enum tbl_preferred_encoding[];
 extern Config_Enum tbl_preferred_media[];
 extern Config_Enum tbl_transfer_rate[];
@@ -296,6 +309,7 @@ extern BOOL LYsetRcValue(const char *name, const char *param);
 extern BOOL will_save_rc(const char *name);
 extern const char *LYputEnum(Config_Enum * table, int value);
 extern int enable_lynxrc(char *value);
+extern int get_http_protocol(char *value);
 extern int get_tagsoup(char *value);
 extern int save_rc(FILE *);
 extern void read_rc(FILE *);

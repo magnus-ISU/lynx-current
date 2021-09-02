@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYCgi.c,v 1.67 2013/11/28 11:35:56 tom Exp $
+ * $LynxId: LYCgi.c,v 1.72 2018/03/18 18:56:05 tom Exp $
  *                   Lynx CGI support                              LYCgi.c
  *                   ================
  *
@@ -114,7 +114,6 @@ static void add_environment_value(const char *env_value)
 	if (env == NULL) {
 	    outofmem(__FILE__, "LYCgi");
 	}
-	assert(env != NULL);
     }
 
     env[envc++] = DeConst(env_value);
@@ -145,6 +144,10 @@ static int LYLoadCGI(const char *arg,
 		     HTFormat format_out,
 		     HTStream *sink)
 {
+    (void) arg;
+    (void) anAnchor;
+    (void) format_out;
+    (void) sink;
     return -1;
 }
 #else
@@ -386,7 +389,7 @@ static int LYLoadCGI(const char *arg,
 			       format_out,
 			       sink, anAnchor);
 
-	if (!target || target == NULL) {
+	if (target == NULL) {
 	    char *tmp = 0;
 
 	    HTSprintf0(&tmp, CANNOT_CONVERT_I_TO_O,
@@ -510,7 +513,7 @@ static int LYLoadCGI(const char *arg,
 		    status = HT_LOADED;
 		}
 
-#if !HAVE_WAITPID
+#ifndef HAVE_WAITPID
 		while (wait(&wstatus) != pid) ;		/* do nothing */
 #else
 		while (-1 == waitpid(pid, &wstatus, 0)) {	/* wait for child */
@@ -595,7 +598,6 @@ static int LYLoadCGI(const char *arg,
 		if (argv == NULL) {
 		    outofmem(__FILE__, "LYCgi");
 		}
-		assert(argv != NULL);
 
 		cur_argv = argv + 1;	/* For argv[0] */
 		if (pgm_args != NULL) {
@@ -637,7 +639,7 @@ static int LYLoadCGI(const char *arg,
 		argv[0] = pgm;
 
 		/* Begin WebSter Mods  -jkt */
-		if (LYCgiDocumentRoot != NULL) {
+		if (non_empty(LYCgiDocumentRoot)) {
 		    /* Add DOCUMENT_ROOT to env */
 		    cp = NULL;
 		    StrAllocCopy(cp, "DOCUMENT_ROOT=");
@@ -651,7 +653,7 @@ static int LYLoadCGI(const char *arg,
 		    StrAllocCat(cp, path_info);
 		    add_environment_value(cp);
 		}
-		if (LYCgiDocumentRoot != NULL && path_info != NULL) {
+		if (non_empty(LYCgiDocumentRoot) && path_info != NULL) {
 		    /* Construct and add PATH_TRANSLATED to env */
 		    StrAllocCopy(document_root, LYCgiDocumentRoot);
 		    LYTrimHtmlSep(document_root);
@@ -668,7 +670,7 @@ static int LYLoadCGI(const char *arg,
 		execve(argv[0], argv, env);
 		exec_errno = errno;
 		PERROR("execve failed");
-		printf("Content-Type: text/plain\r\n\r\n");
+		printf("Content-Type: " STR_PLAINTEXT "\r\n\r\n");
 		if (!anAnchor->isHEAD) {
 		    printf("exec of %s failed", pgm);
 		    printf(": %s.\r\n", LYStrerror(exec_errno));

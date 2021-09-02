@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYCharSets.c,v 1.68 2013/01/04 21:47:16 tom Exp $
+ * $LynxId: LYCharSets.c,v 1.71 2021/06/29 22:01:12 tom Exp $
  */
 #include <HTUtils.h>
 #include <HTCJK.h>
@@ -22,7 +22,7 @@ BOOLEAN DisplayCharsetMatchLocale = TRUE;
 BOOL force_old_UCLYhndl_on_reload = FALSE;
 int forced_UCLYhdnl;
 int LYNumCharsets = 0;		/* Will be initialized later by UC_Register. */
-int current_char_set = -1;	/* will be intitialized later in LYMain.c */
+int current_char_set = -1;	/* will be initialized later in LYMain.c */
 int linedrawing_char_set = -1;
 STRING2PTR p_entity_values = NULL;	/* Pointer, for HTML_put_entity() */
 
@@ -523,7 +523,7 @@ void Set_HTCJK(const char *inMIMEname,
 
     if (LYRawMode) {
 	if ((!strcmp(inMIMEname, "euc-jp") ||
-#ifdef EXP_JAPANESEUTF8_SUPPORT
+#ifdef USE_JAPANESEUTF8_SUPPORT
 	     !strcmp(inMIMEname, "utf-8") ||
 #endif
 	     !strcmp(inMIMEname, "shift_jis")) &&
@@ -1091,7 +1091,7 @@ UCode_t LYcp1252ToUnicode(UCode_t code)
 	    /*
 	     * Undefined (by convention, use the replacement character).
 	     */
-	    code = 0xfffd;
+	    code = UCS_REPL;
 	    break;
 	}
     }

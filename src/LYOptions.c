@@ -1,4 +1,4 @@
-/* $LynxId: LYOptions.c,v 1.164 2013/10/25 01:10:17 tom Exp $ */
+/* $LynxId: LYOptions.c,v 1.183 2021/07/05 21:17:42 tom Exp $ */
 #include <HTUtils.h>
 #include <HTFTP.h>
 #include <HTTP.h>		/* 'reloading' flag */
@@ -981,7 +981,7 @@ void LYoptions(void)
 		    if (!LYSelectPopups)
 #endif /* !VMS && !USE_SLANG */
 		    {
-			LYmove(L_Rawmode, COL_OPTION_VALUES);
+			LYmove(L_RAWMODE + 1, COL_OPTION_VALUES);
 			LYclrtoeol();
 			ShowBool(LYRawMode);
 		    }
@@ -1593,9 +1593,13 @@ static int widest_choice(STRING2PTR choices)
 static void show_choice(const char *choice,
 			int width)
 {
-    int len = (int) strlen(choice);
+    int len = 0;
 
-    LYaddstr(choice);
+    if (choice != 0) {
+	len = (int) strlen(choice);
+
+	LYaddstr(choice);
+    }
     while (len++ < width)
 	LYaddch(' ');
 }
@@ -2113,6 +2117,10 @@ typedef struct {
     const char *HtmlName;
 } OptValues;
 
+#define END_OPTIONS {0, 0, 0}
+
+#define HasOptValues(table) (((table) != NULL) && ((table)->LongName != NULL))
+
 typedef struct {
     char *tag;
     char *value;
@@ -2128,7 +2136,7 @@ static OptValues bool_values[] =
 {
     {FALSE, N_("OFF"), "OFF"},
     {TRUE, N_("ON"), "ON"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 
 static const char *secure_string = "secure";
@@ -2158,7 +2166,7 @@ static OptValues exec_links_values[] =
 #ifndef NEVER_ALLOW_REMOTE_EXEC
     {EXEC_ALWAYS, N_("ALWAYS ON"), "ALWAYS ON"},
 #endif
-    {0, 0, 0}
+    END_OPTIONS
 };
 #endif /* ENABLE_OPTS_CHANGE_EXEC */
 
@@ -2178,7 +2186,7 @@ static OptValues keypad_mode_values[] =
     {FIELDS_ARE_NUMBERED,
      N_("Form fields are numbered"),
      "forms_numbered"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 static const char *lineedit_mode_string = RC_LINEEDIT_MODE;
 static const char *mail_address_string = RC_PERSONAL_MAIL_ADDRESS;
@@ -2193,7 +2201,7 @@ static OptValues search_type_values[] =
 {
     {FALSE, N_("Case insensitive"), "case_insensitive"},
     {TRUE, N_("Case sensitive"), "case_sensitive"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 
 #if defined(USE_SLANG) || defined(COLOR_CURSES)
@@ -2204,7 +2212,7 @@ static OptValues show_color_values[] =
     {SHOW_COLOR_OFF, off_string, off_string},
     {SHOW_COLOR_ON, on_string, on_string},
     {SHOW_COLOR_ALWAYS, always_string, always_string},
-    {0, 0, 0}
+    END_OPTIONS
 };
 #endif
 
@@ -2234,10 +2242,21 @@ static OptValues prompt_values[] =
     {FORCE_PROMPT_DFT, prompt_dft_string, prompt_dft_string},
     {FORCE_PROMPT_YES, prompt_yes_string, prompt_yes_string},
     {FORCE_PROMPT_NO, prompt_no_string, prompt_no_string},
-    {0, 0, 0}
+    END_OPTIONS
 };
-
 static const char *cookie_prompt_string = RC_FORCE_COOKIE_PROMPT;
+
+static const char RFC_2109_string[] = N_("RFC 2109");
+static const char RFC_2965_string[] = N_("RFC 2965");
+static const char RFC_6265_string[] = N_("RFC 6265");
+static OptValues cookies_values[] =
+{
+    {COOKIES_RFC_2109, RFC_2109_string, RFC_2109_string},
+    {COOKIES_RFC_2965, RFC_2965_string, RFC_2965_string},
+    {COOKIES_RFC_6265, RFC_6265_string, RFC_6265_string},
+    END_OPTIONS
+};
+static const char *cookie_version_string = RC_COOKIE_VERSION;
 
 #ifdef USE_SSL
 static const char *ssl_prompt_string = RC_FORCE_SSL_PROMPT;
@@ -2249,7 +2268,7 @@ static OptValues user_mode_values[] =
     {NOVICE_MODE, N_("Novice"), "Novice"},
     {INTERMEDIATE_MODE, N_("Intermediate"), "Intermediate"},
     {ADVANCED_MODE, N_("Advanced"), "Advanced"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 
 static const char *vi_keys_string = RC_VI_KEYS;
@@ -2264,7 +2283,7 @@ static OptValues visited_links_values[] =
     {VISITED_LINKS_AS_LATEST, N_("By Last Visit"), "last_visited"},
     {VISITED_LINKS_AS_LATEST | VISITED_LINKS_REVERSE,
      N_("By Last Visit Reversed"), "last_visited_reversed"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 
 /*
@@ -2276,7 +2295,7 @@ static OptValues DTD_type_values[] =
 	/* Old_DTD variable */
     {TRUE, N_("relaxed (TagSoup mode)"), "tagsoup"},
     {FALSE, N_("strict (SortaSGML mode)"), "sortasgml"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 
 static const char *bad_html_string = RC_BAD_HTML;
@@ -2286,7 +2305,7 @@ static OptValues bad_html_values[] =
     {BAD_HTML_TRACE, N_("Add to trace-file"), "trace"},
     {BAD_HTML_MESSAGE, N_("Add to LYNXMESSAGES"), "message"},
     {BAD_HTML_WARN, N_("Warn, point to trace-file"), "warn"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 
 static const char *select_popups_string = RC_SELECT_POPUPS;
@@ -2301,7 +2320,25 @@ static OptValues verbose_images_type_values[] =
 	/* verbose_img variable */
     {FALSE, N_("OFF"), "OFF"},
     {TRUE, N_("show filename"), "ON"},
-    {0, 0, 0}
+    END_OPTIONS
+};
+
+static const char *collapse_br_tags_string = RC_COLLAPSE_BR_TAGS;
+static OptValues collapse_br_tags_values[] =
+{
+	/* LYCollapseBRs variable */
+    {FALSE, N_("OFF"), "OFF"},
+    {TRUE, N_("collapse"), "ON"},
+    END_OPTIONS
+};
+
+static const char *trim_blank_lines_string = RC_TRIM_BLANK_LINES;
+static OptValues trim_blank_lines_values[] =
+{
+	/* LYtrimBlankLines variable */
+    {FALSE, N_("OFF"), "OFF"},
+    {TRUE, N_("trim-lines"), "ON"},
+    END_OPTIONS
 };
 
 /*
@@ -2313,7 +2350,7 @@ static OptValues mbm_values[] =
     {MBM_OFF, N_("OFF"), "OFF"},
     {MBM_STANDARD, N_("STANDARD"), "STANDARD"},
     {MBM_ADVANCED, N_("ADVANCED"), "ADVANCED"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 
 static const char *single_bookmark_string = RC_BOOKMARK_FILE;
@@ -2329,6 +2366,18 @@ static const char *single_session_string = RC_SESSION_FILE;
 static const char *assume_char_set_string = RC_ASSUME_CHARSET;
 static const char *display_char_set_string = RC_CHARACTER_SET;
 static const char *raw_mode_string = RC_RAW_MODE;
+
+#ifdef USE_IDN2
+static const char *idna_mode_string = RC_IDNA_MODE;
+static OptValues idna_values[] =
+{
+    {LYidna2003, N_("IDNA 2003"), "idna2003"},
+    {LYidna2008, N_("IDNA 2008"), "idna2008"},
+    {LYidnaTR46, N_("IDNA TR46"), "idnaTR46"},
+    {LYidnaCompat, N_("IDNA Compatible"), "idnaCompat"},
+    END_OPTIONS
+};
+#endif
 
 #ifdef USE_LOCALE_CHARSET
 static const char *locale_charset_string = RC_LOCALE_CHARSET;
@@ -2349,7 +2398,7 @@ static OptValues dired_list_values[] =
     {DIRS_FIRST, N_("Directories first"), "dired_dir"},
     {FILES_FIRST, N_("Files first"), "dired_files"},
     {MIXED_STYLE, N_("Mixed style"), "dired_mixed"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 
 #ifdef LONG_LIST
@@ -2365,7 +2414,7 @@ static OptValues dired_sort_values[] =
     {ORDER_BY_USER, N_("By User"), "dired_by_user"},
     {ORDER_BY_GROUP, N_("By Group"), "dired_by_group"},
 #endif
-    {0, 0, 0}
+    END_OPTIONS
 };
 #endif /* LONG_LIST */
 #endif /* DIRED_SUPPORT */
@@ -2380,7 +2429,7 @@ static OptValues ftp_sort_values[] =
     {FILE_BY_TYPE, N_("By Type"), "ftp_by_type"},
     {FILE_BY_SIZE, N_("By Size"), "ftp_by_size"},
     {FILE_BY_DATE, N_("By Date"), "ftp_by_date"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 #endif
 
@@ -2400,9 +2449,18 @@ static OptValues rate_values[] =
 #ifdef USE_PROGRESSBAR
     {rateBAR, N_("Show progressbar"), "rate_bar"},
 #endif
-    {0, 0, 0}
+    END_OPTIONS
 };
 #endif /* USE_READPROGRESS */
+
+static const char *preferred_content_string = RC_PREFERRED_CONTENT_TYPE;
+static OptValues content_values[] =
+{
+    {contentBINARY, STR_BINARY, STR_BINARY},
+    {contentTEXT, STR_PLAINTEXT, STR_PLAINTEXT},
+    {contentHTML, STR_HTML, STR_HTML},
+    END_OPTIONS
+};
 
 /*
  * Presentation (MIME) types used in "Accept".
@@ -2415,7 +2473,7 @@ static OptValues media_values[] =
     {mediaOpt3, N_("Also accept user's types"), "media_opt3"},
     {mediaOpt4, N_("Also accept system's types"), "media_opt4"},
     {mediaALL, N_("Accept all types"), "media_all"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 
 static const char *preferred_encoding_string = RC_PREFERRED_ENCODING;
@@ -2433,16 +2491,27 @@ static OptValues encoding_values[] =
     {encodingBZIP2, N_("bzip2"), "encoding_bzip2"},
 #endif
     {encodingALL, N_("All"), "encoding_all"},
-    {0, 0, 0}
+    END_OPTIONS
 };
 
 /*
  * Headers transferred to remote server
  */
+static const char *http_protocol_string = RC_HTTP_PROTOCOL;
+static OptValues http_protocol_values[] =
+{
+    {HTTP_1_0, N_("HTTP 1.0"), "HTTP_1_0"},
+    {HTTP_1_1, N_("HTTP 1.1"), "HTTP_1_1"},
+    END_OPTIONS
+};
+
 static const char *preferred_doc_char_string = RC_PREFERRED_CHARSET;
 static const char *preferred_doc_lang_string = RC_PREFERRED_LANGUAGE;
 static const char *send_user_agent_string = RC_SEND_USERAGENT;
 static const char *user_agent_string = RC_USERAGENT;
+
+static const char *ssl_client_certificate_file = RC_SSL_CLIENT_CERT_FILE;
+static const char *ssl_client_key_file = RC_SSL_CLIENT_KEY_FILE;
 
 #define PutHeader(fp, Name) \
 	fprintf(fp, "\n%s<em>%s</em>\n", MARGIN_STR, LYEntifyTitle(&buffer, Name));
@@ -2498,7 +2567,7 @@ static BOOLEAN GetOptValues(OptValues * table, char *value,
 
 #ifdef USE_COLOR_STYLE
 #ifdef LY_FIND_LEAKS
-static void free_colorstyle_leaks(void)
+void free_colorstyle_leaks(void)
 {
     FREE(color_style_values);
 }
@@ -2602,8 +2671,6 @@ static PostPair *break_data(bstring *data)
     if (q == NULL)
 	outofmem(__FILE__, "break_data(calloc)");
 
-    assert(q != NULL);
-
     do {
 	/*
 	 * First, break up on '&', sliding 'p' on down the line.
@@ -2657,8 +2724,6 @@ static PostPair *break_data(bstring *data)
 	q = typeRealloc(PostPair, q, (unsigned) (count + 1));
 	if (q == NULL)
 	    outofmem(__FILE__, "break_data(realloc)");
-
-	assert(q != NULL);
 
 	q[count].tag = NULL;
     } while (p != NULL && p[0] != '\0');
@@ -3046,6 +3111,10 @@ int postoptions(DocInfo *newdoc)
 	}
 #endif
 
+	/* Cookie Version: SELECT */
+	if (!strcmp(data[i].tag, cookie_version_string))
+	    GetOptValues(cookies_values, data[i].value, &cookie_version);
+
 	/* Cookie Prompting: SELECT */
 	if (!strcmp(data[i].tag, cookie_prompt_string))
 	    GetOptValues(prompt_values, data[i].value, &cookie_noprompt);
@@ -3090,6 +3159,24 @@ int postoptions(DocInfo *newdoc)
 	    && GetOptValues(verbose_images_type_values, data[i].value, &code)) {
 	    if (verbose_img != code) {
 		verbose_img = (BOOLEAN) code;
+		need_reload = TRUE;
+	    }
+	}
+
+	/* Collapse BR Tags: ON/OFF */
+	if (!strcmp(data[i].tag, collapse_br_tags_string)
+	    && GetOptValues(collapse_br_tags_values, data[i].value, &code)) {
+	    if (LYCollapseBRs != code) {
+		LYCollapseBRs = (BOOLEAN) code;
+		need_reload = TRUE;
+	    }
+	}
+
+	/* Trim Blank Lines: ON/OFF */
+	if (!strcmp(data[i].tag, trim_blank_lines_string)
+	    && GetOptValues(trim_blank_lines_values, data[i].value, &code)) {
+	    if (LYtrimBlankLines != code) {
+		LYtrimBlankLines = (BOOLEAN) code;
 		need_reload = TRUE;
 	    }
 	}
@@ -3173,6 +3260,13 @@ int postoptions(DocInfo *newdoc)
 		    current_char_set = newval;
 	    }
 	}
+#ifdef USE_IDN2
+	/* Internationalized Domain Names: SELECT */
+	if (!strcmp(data[i].tag, idna_mode_string)
+	    && GetOptValues(idna_values, data[i].value, &code)) {
+	    LYidnaMode = code;
+	}
+#endif
 
 	/* Raw Mode: ON/OFF */
 	if (!strcmp(data[i].tag, raw_mode_string)
@@ -3227,6 +3321,11 @@ int postoptions(DocInfo *newdoc)
 	}
 #endif /* USE_READPROGRESS */
 
+	/* Preferred Content Type: SELECT */
+	if (!strcmp(data[i].tag, preferred_content_string)) {
+	    GetOptValues(content_values, data[i].value, &LYContentType);
+	}
+
 	/* Preferred Media Type: SELECT */
 	if (!strcmp(data[i].tag, preferred_media_string)) {
 	    GetOptValues(media_values, data[i].value, &LYAcceptMedia);
@@ -3255,9 +3354,26 @@ int postoptions(DocInfo *newdoc)
 	    }
 	}
 
+	/*
+	 * HTTP protocol: SELECT
+	 */
+	if (!strcmp(data[i].tag, http_protocol_string)) {
+	    GetOptValues(http_protocol_values, data[i].value, &HTprotocolLevel);
+	}
+
 	/* Send User Agent: INPUT */
 	if (!strcmp(data[i].tag, send_user_agent_string)) {
 	    LYSendUserAgent = (BOOLEAN) !strcasecomp(data[i].value, "ON");
+	}
+
+	if (!strcmp(data[i].tag, ssl_client_certificate_file)) {
+	    FREE(SSL_client_cert_file);
+	    StrAllocCopy(SSL_client_cert_file, data[i].value);
+	}
+
+	if (!strcmp(data[i].tag, ssl_client_key_file)) {
+	    FREE(SSL_client_key_file);
+	    StrAllocCopy(SSL_client_key_file, data[i].value);
 	}
 
 	/* User Agent: INPUT */
@@ -3321,9 +3437,7 @@ int postoptions(DocInfo *newdoc)
 	need_reload = TRUE;
     }
     /* end of charset settings */
-    /*
-     * FIXME: Golly gee, we need to write all of this out now, don't we?
-     */
+
     BStrFree(newdoc->post_data);
     FREE(data);
     if (save_all) {
@@ -3404,7 +3518,7 @@ int postoptions(DocInfo *newdoc)
      */
     if ((need_end_reload == TRUE &&
 	 (StrNCmp(newdoc->address, "http", 4) == 0 ||
-	  isLYNXCGI(newdoc->address) == 0))) {
+	  isLYNXCGI(newdoc->address)))) {
 	/*
 	 * An option has changed which may influence content negotiation, and
 	 * the resource is from a http or https or lynxcgi URL (the only
@@ -3469,7 +3583,7 @@ static char *NewSecureValue(void)
     FREE(secure_value);
     if ((secure_value = typeMallocn(char, 80)) != 0) {
 #if defined(RAND_MAX)
-	long key = lynx_rand();
+	long key = (long) lynx_rand();
 
 #else
 	long key = (long) secure_value + (long) time(0);
@@ -3484,7 +3598,7 @@ static char *NewSecureValue(void)
 
 /*
  * Note: the 'value' we are passing here is a local copy of the "same" string
- * as is used in LYrcFile.c to index the savable options.
+ * as is used in LYrcFile.c to index the saveable options.
  */
 static void PutLabel(FILE *fp, const char *name,
 		     const char *value)
@@ -3494,7 +3608,7 @@ static void PutLabel(FILE *fp, const char *name,
     int need = LYstrExtent(name, have, want);
     char *buffer = NULL;
 
-    fprintf(fp, "%s%s", MARGIN_STR, LYEntifyTitle(&buffer, name));
+    fprintf(fp, "%s%s", MARGIN_STR, LYEntifyTitle(&buffer, NonNull(name)));
 
     if (will_save_rc(value) && !no_option_save) {
 	while (need++ < want)
@@ -3717,6 +3831,12 @@ static int gen_options(char **newfile)
 	      cookies_accept_all_string);
     EndSelect(fp0);
 
+    /* Cookie Version: SELECT */
+    PutLabel(fp0, gettext("Cookie RFC-version"), cookie_version_string);
+    BeginSelect(fp0, cookie_version_string);
+    PutOptValues(fp0, cookie_version, cookies_values);
+    EndSelect(fp0);
+
     /* Cookie Prompting: SELECT */
     PutLabel(fp0, gettext("Invalid-Cookie Prompting"), cookie_prompt_string);
     BeginSelect(fp0, cookie_prompt_string);
@@ -3729,6 +3849,15 @@ static int gen_options(char **newfile)
     BeginSelect(fp0, ssl_prompt_string);
     PutOptValues(fp0, ssl_noprompt, prompt_values);
     EndSelect(fp0);
+
+    PutLabel(fp0, gettext("SSL client certificate file"), ssl_client_certificate_file);
+    PutTextInput(fp0, ssl_client_certificate_file,
+		 NonNull(SSL_client_cert_file), text_len, "");
+
+    PutLabel(fp0, gettext("SSL client key file"), ssl_client_key_file);
+    PutTextInput(fp0, ssl_client_key_file,
+		 NonNull(SSL_client_key_file), text_len, "");
+
 #endif
 
     PutHeader(fp0, gettext("Keyboard Input"));
@@ -3757,7 +3886,7 @@ static int gen_options(char **newfile)
 	PutLabel(fp0, gettext("Line edit style"), lineedit_mode_string);
 	BeginSelect(fp0, lineedit_mode_string);
 	for (i = 0; LYEditorNames[i]; i++) {
-	    char temp[16];
+	    char temp[DigitsOf(i) + 3];
 
 	    sprintf(temp, "%d", i);
 	    PutOption(fp0, i == current_lineedit, temp, LYEditorNames[i]);
@@ -3769,7 +3898,7 @@ static int gen_options(char **newfile)
     PutLabel(fp0, gettext("Keyboard layout"), kblayout_string);
     BeginSelect(fp0, kblayout_string);
     for (i = 0; LYKbLayoutNames[i]; i++) {
-	char temp[16];
+	char temp[DigitsOf(i) + 3];
 
 	sprintf(temp, "%d", i);
 	PutOption(fp0, i == current_layout, temp, LYKbLayoutNames[i]);
@@ -3801,7 +3930,7 @@ static int gen_options(char **newfile)
     PutLabel(fp0, gettext("Display character set"), display_char_set_string);
     MaybeSelect(fp0, LYLocaleCharset, display_char_set_string);
     for (i = 0; LYchar_set_names[i]; i++) {
-	char temp[10];
+	char temp[DigitsOf(i) + 3];
 	size_t len = strlen(LYchar_set_names[i]);
 
 	if (len > cset_len)
@@ -3841,6 +3970,20 @@ static int gen_options(char **newfile)
 	}
 	EndSelect(fp0);
     }
+
+#ifdef USE_IDN2
+    /* Internationalized Domain Names: SELECT */
+    {
+	PutLabel(fp0, gettext("Internationalized domain names"), idna_mode_string);
+	BeginSelect(fp0, idna_mode_string);
+	for (i = 0; idna_values[i].value != 0; i++) {
+	    PutOption(fp0, idna_values[i].value == LYidnaMode,
+		      idna_values[i].HtmlName,
+		      idna_values[i].LongName);
+	}
+	EndSelect(fp0);
+    }
+#endif
 
     /* Raw Mode: ON/OFF */
     if (LYHaveCJKCharacterSet) {
@@ -3896,10 +4039,12 @@ static int gen_options(char **newfile)
 
 #ifdef USE_COLOR_STYLE
     /* Color style: ON/OFF */
-    PutLabel(fp0, gettext("Color style"), color_style_string);
-    BeginSelect(fp0, color_style_string);
-    PutOptValues(fp0, get_color_style_value(), color_style_values);
-    EndSelect(fp0);
+    if (HasOptValues(color_style_values)) {
+	PutLabel(fp0, gettext("Color style"), color_style_string);
+	BeginSelect(fp0, color_style_string);
+	PutOptValues(fp0, get_color_style_value(), color_style_values);
+	EndSelect(fp0);
+    }
 #endif
 
 #ifdef USE_DEFAULT_COLORS
@@ -3970,6 +4115,18 @@ static int gen_options(char **newfile)
     PutOptValues(fp0, verbose_img, verbose_images_type_values);
     EndSelect(fp0);
 
+    /* Collapse BR Tags: ON/OFF */
+    PutLabel(fp0, gettext("Collapse BR tags"), collapse_br_tags_string);
+    BeginSelect(fp0, collapse_br_tags_string);
+    PutOptValues(fp0, LYCollapseBRs, collapse_br_tags_values);
+    EndSelect(fp0);
+
+    /* Trim blank lines: ON/OFF */
+    PutLabel(fp0, gettext("Trim blank lines"), trim_blank_lines_string);
+    BeginSelect(fp0, trim_blank_lines_string);
+    PutOptValues(fp0, LYtrimBlankLines, trim_blank_lines_values);
+    EndSelect(fp0);
+
     /*
      * Headers Transferred to Remote Servers
      */
@@ -3994,6 +4151,12 @@ static int gen_options(char **newfile)
 		 NonNull(anonftp_password), text_len, "");
 #endif
 
+    /* Preferred content type: SELECT */
+    PutLabel(fp0, gettext("Preferred content type"), preferred_content_string);
+    BeginSelect(fp0, preferred_content_string);
+    PutOptValues(fp0, LYContentType, content_values);
+    EndSelect(fp0);
+
     /* Preferred media type: SELECT */
     PutLabel(fp0, gettext("Preferred media type"), preferred_media_string);
     BeginSelect(fp0, preferred_media_string);
@@ -4015,6 +4178,12 @@ static int gen_options(char **newfile)
     PutLabel(fp0, gettext("Preferred document language"), preferred_doc_lang_string);
     PutTextInput(fp0, preferred_doc_lang_string,
 		 NonNull(language), cset_len + 2, "");
+
+    /* HTTP protocol SELECT */
+    PutLabel(fp0, gettext("HTTP protocol"), http_protocol_string);
+    BeginSelect(fp0, http_protocol_string);
+    PutOptValues(fp0, HTprotocolLevel, http_protocol_values);
+    EndSelect(fp0);
 
     /* User Agent: INPUT */
     if (!no_useragent) {

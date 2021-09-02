@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYList.c,v 1.53 2013/10/03 07:46:14 tom Exp $
+ * $LynxId: LYList.c,v 1.55 2020/02/23 21:20:05 tom Exp $
  *
  *			Lynx Document Reference List Support	      LYList.c
  *			====================================
@@ -294,7 +294,8 @@ static int print_refs(FILE *fp, int titles, int refs)
 		    fprintf(fp, "%s\n", title);
 		} else {
 		    address = HTAnchor_short_address(dest);
-		    if (LYCharSet_UC[current_char_set].enc == UCT_ENC_UTF8) {
+		    if (dump_links_decoded
+			&& LYCharSet_UC[current_char_set].enc == UCT_ENC_UTF8) {
 			(void) HTUnEscape(address);
 		    }
 		    fprintf(fp, "%s\n", address);
@@ -359,7 +360,7 @@ void printlist(FILE *fp, int titles)
 	    if (LYHiddenLinks == HIDDENLINKS_IGNORE)
 		hidden_links = 0;
 	    if (hidden_links > 0) {
-		fprintf(fp, "   %s\n", gettext("Visible links"));
+		fprintf(fp, "   %s\n", gettext("Visible links:"));
 	    }
 	    refs = print_refs(fp, titles, refs) + 1;
 

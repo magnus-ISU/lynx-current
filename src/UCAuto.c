@@ -1,5 +1,5 @@
 /*
- * $LynxId: UCAuto.c,v 1.53 2013/11/29 00:22:00 tom Exp $
+ * $LynxId: UCAuto.c,v 1.56 2021/06/09 22:29:43 tom Exp $
  *
  *  This file contains code for changing the Linux console mode.
  *  Currently some names for font files are hardwired in here.
@@ -173,7 +173,7 @@ static int call_setfont(const char *font,
 	FREE(T_setfont_cmd);
 	if (rv) {
 	    CTRACE((tfp, "call_setfont: system returned %d (0x%x)!\n",
-		    rv, rv));
+		    rv, (unsigned) rv));
 	    if (rv == -1 || WIFSIGNALED(rv) || !WIFEXITED(rv)) {
 		return -1;
 	    } else if ((WEXITSTATUS(rv) == EX_DATAERR ||
@@ -213,7 +213,7 @@ static int nonempty_file(const char *p)
 
 static BOOL on_console(void)
 {
-    if ((x_display != NULL) ||
+    if ((non_empty(x_display)) ||
 	LYgetXDisplay() != NULL) {
 	/*
 	 * We won't do anything in an xterm.  Better that way...
@@ -282,7 +282,8 @@ void UCChangeTerminalCodepage(int newcs,
 		CTRACE((tfp, "Restoring font: '%s'\n", tmpbuf1));
 		status = LYSystem(tmpbuf1);
 		if (status != 0) {
-		    CTRACE((tfp, "...system returned %d (0x%x)\n", status, status));
+		    CTRACE((tfp, "...system returned %d (0x%x)\n", status,
+			    (unsigned) status));
 		}
 		FREE(tmpbuf1);
 	    }
@@ -312,8 +313,6 @@ void UCChangeTerminalCodepage(int newcs,
 	if (old_font == NULL)
 	    outofmem(__FILE__, "UCChangeTerminalCodepage");
 
-	assert(old_font != NULL);
-
 	if ((fp1 = LYOpenTemp(old_font, ".fnt", BIN_W)) != 0)
 	    fp2 = LYOpenTemp(old_umap, ".uni", BIN_W);
 
@@ -330,7 +329,7 @@ void UCChangeTerminalCodepage(int newcs,
 	    CTRACE((tfp, "Saving font: '%s'\n", tmpbuf1));
 	    rv = LYSystem(tmpbuf1);
 	    if (rv != 0) {
-		CTRACE((tfp, "...system returned %d (0x%x)\n", rv, rv));
+		CTRACE((tfp, "...system returned %d (0x%x)\n", rv, (unsigned) rv));
 	    }
 	    FREE(tmpbuf1);
 	    LYCloseTempFP(fp1);

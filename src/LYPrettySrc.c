@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYPrettySrc.c,v 1.29 2013/11/28 11:21:09 tom Exp $
+ * $LynxId: LYPrettySrc.c,v 1.36 2018/03/06 10:27:28 tom Exp $
  *
  * HTML source syntax highlighting
  * by Vlad Harchev <hvv@hippo.ru>
@@ -76,7 +76,7 @@ HT_tagspec *lexeme_end[HTL_num_lexemes];
 int tagname_transform = 2;
 int attrname_transform = 2;
 
-static int html_src_tag_index(char *tagname)
+static int html_src_tag_index(const char *tagname)
 {
     HTTag *tag = SGMLFindTag(&HTML_dtd, tagname);
 
@@ -90,7 +90,7 @@ typedef enum {
     HTSRC_CK_seen_dot
 } html_src_check_state;
 
-static void append_close_tag(char *tagname,
+static void append_close_tag(const char *tagname,
 			     HT_tagspec ** head,
 			     HT_tagspec ** tail)
 {
@@ -140,8 +140,8 @@ static void append_close_tag(char *tagname,
 
 /* this will allocate node, initialize all members, and node
    append to the list, possibly modifying head and modifying tail */
-static void append_open_tag(char *tagname,
-			    char *classname GCC_UNUSED,
+static void append_open_tag(const char *tagname,
+			    const char *classname GCC_UNUSED,
 			    HT_tagspec ** head,
 			    HT_tagspec ** tail)
 {
@@ -156,28 +156,11 @@ static void append_open_tag(char *tagname,
     subj->start = TRUE;
 
 #ifdef USE_COLOR_STYLE
-    hcode = hash_code_lowercase_on_fly(tagname);
     if (non_empty(classname)) {
-
-#  if 0
-	/*
-	 * we don't provide a classname as attribute of that tag, since for
-	 * plain formatting tags they are not used directly for anything except
-	 * style - and we provide style value directly.
-	 */
-	HTTag *tag = HTML_dtd.tags + subj->element;
-	int class_attr_idx = 0;
-	int n = tag->number_of_attributes;
-	attr *attrs = tag->attributes;
-
-/*.... */
-/* this is not implemented though it's easy */
-#  endif
-
-	hcode = hash_code_aggregate_char('.', hcode);
-	hcode = hash_code_aggregate_lower_str(classname, hcode);
+	hcode = color_style_3(tagname, ".", classname);
 	StrAllocCopy(subj->class_name, classname);
     } else {
+	hcode = color_style_1(tagname);
 	StrAllocCopy(subj->class_name, "");
     }
     subj->style = hcode;

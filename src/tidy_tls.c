@@ -1,6 +1,6 @@
 /*
- * $LynxId: tidy_tls.c,v 1.22 2014/01/11 17:34:51 tom Exp $
- * Copyright 2008-2013,2014 Thomas E. Dickey
+ * $LynxId: tidy_tls.c,v 1.41 2020/03/03 11:46:07 Gisle.Vanem Exp $
+ * Copyright 2008-2019,2020 Thomas E. Dickey
  * with fix Copyright 2008 by Thomas Viehmann
  *
  * Required libraries:
@@ -11,15 +11,13 @@
 #include <tidy_tls.h>
 
 #include <gnutls/x509.h>
+#ifdef HAVE_GNUTLS_RND
+#include <gnutls/crypto.h>
+#else
 #include <gcrypt.h>
+#endif
 #include <libtasn1.h>		/* ASN1_SUCCESS,etc */
 #include <string.h>
-
-#ifdef HAVE_GNUTLS_PRIORITY_SET_DIRECT
-#define USE_SET_DIRECT 1
-#else
-#define USE_SET_DIRECT 0
-#endif
 
 #define typeCalloc(type) (type *) calloc(1, sizeof(type))
 
@@ -72,7 +70,7 @@ static int ExtractCertificate(const gnutls_datum_t *cert, X509_NAME * result, in
 const char *ERR_error_string(unsigned long e, char *buffer)
 {
     (void) buffer;
-    return gnutls_strerror(-e);
+    return gnutls_strerror((int) -e);
 }
 
 /*
@@ -84,7 +82,7 @@ unsigned long ERR_get_error(void)
 {
     unsigned long rc;
 
-    rc = -last_error;
+    rc = (unsigned long) (-last_error);
     last_error = 0;
 
     return rc;
@@ -95,8 +93,15 @@ unsigned long ERR_get_error(void)
  */
 int RAND_bytes(unsigned char *buffer, int num)
 {
+    int rc;
+
+#ifdef HAVE_GNUTLS_RND
+    rc = gnutls_rnd(GNUTLS_RND_KEY, buffer, (size_t) num);
+#else
     gcry_randomize(buffer, num, GCRY_VERY_STRONG_RANDOM);
-    return 1;
+    rc = 1;
+#endif
+    return rc;
 }
 
 /*
@@ -120,7 +125,7 @@ const char *RAND_file_name(char *buffer, size_t len)
 int RAND_load_file(const char *name, long maxbytes)
 {
     (void) name;
-    return maxbytes;
+    return (int) maxbytes;
 }
 
 /*
@@ -163,7 +168,7 @@ int SSL_CIPHER_get_bits(SSL_CIPHER * cipher, int *bits)
     int result = 0;
 
     if (cipher) {
-	result = (8 * gnutls_cipher_get_key_size(cipher->encrypts));
+	result = (8 * (int) gnutls_cipher_get_key_size(cipher->encrypts));
     }
 
     if (bits)
@@ -257,116 +262,7 @@ void SSL_CTX_set_verify(SSL_CTX * ctx, int verify_mode,
     ctx->verify_callback = verify_callback;
 }
 
-#if USE_SET_DIRECT
-/*
- * Functions such as this are normally part of an API; lack of planning makes
- * these necessary in application code.
- */
-#define IdsToString(type, func, ids) \
-	char *result = 0; \
-	size_t need = 8 + strlen(type); \
-	const char *name; \
-	int pass; \
-	int n; \
-	for (pass = 0; pass < 2; ++pass) { \
-	    for (n = 0; n < GNUTLS_MAX_ALGORITHM_NUM; ++n) { \
-		name = 0; \
-		if (ids[n] == 0) \
-		    break; \
-		if ((name = func(ids[n])) != 0) { \
-		    if (pass) { \
-			sprintf(result + strlen(result), ":+%s%s", type, name); \
-		    } else { \
-			need += 4 + strlen(type) + strlen(name); \
-		    } \
-		} \
-	    } \
-	    if (!pass) { \
-		result = malloc(need); \
-		if (!result) \
-		    break; \
-		result[0] = '\0'; \
-	    } \
-	} \
-	CTRACE((tfp, "->%s\n", result)); \
-	return result
-
-/*
- * Given an array of compression id's, convert to string for GNUTLS.
- */
-static char *StringOfCIPHER(int *id_ptr)
-{
-    IdsToString("", gnutls_cipher_get_name, id_ptr);
-}
-
-/*
- * Given an array of compression id's, convert to string for GNUTLS.
- */
-static char *StringOfCOMP(int *id_ptr)
-{
-    IdsToString("COMP-", gnutls_compression_get_name, id_ptr);
-}
-
-/*
- * Given an array of key-exchange id's, convert to string for GNUTLS.
- */
-static char *StringOfKX(int *id_ptr)
-{
-    IdsToString("", gnutls_kx_get_name, id_ptr);
-}
-
-/*
- * Given an array of MAC algorithm id's, convert to string for GNUTLS.
- */
-static char *StringOfMAC(int *id_ptr)
-{
-    IdsToString("", gnutls_mac_get_name, id_ptr);
-}
-
-/*
- * Given an array of protocol id's, convert to string for GNUTLS.
- */
-static char *StringOfVERS(int *vers_ptr)
-{
-    IdsToString("VERS-", gnutls_protocol_get_name, vers_ptr);
-}
-
-static void UpdatePriority(SSL * ssl)
-{
-    SSL_METHOD *method = ssl->ctx->method;
-    char *complete = 0;
-    char *pnames;
-    const char *err_pos = 0;
-    int code;
-
-    StrAllocCopy(complete, "NONE");
-    if ((pnames = StringOfVERS(method->priority.protocol)) != 0) {
-	StrAllocCat(complete, pnames);
-	free(pnames);
-    }
-    if ((pnames = StringOfCIPHER(method->priority.encrypts)) != 0) {
-	StrAllocCat(complete, pnames);
-	free(pnames);
-    }
-    if ((pnames = StringOfCOMP(method->priority.compress)) != 0) {
-	StrAllocCat(complete, pnames);
-	free(pnames);
-    }
-    if ((pnames = StringOfKX(method->priority.key_xchg)) != 0) {
-	StrAllocCat(complete, pnames);
-	free(pnames);
-    }
-    if ((pnames = StringOfMAC(method->priority.msg_code)) != 0) {
-	StrAllocCat(complete, pnames);
-	free(pnames);
-    }
-    CTRACE((tfp, "set priorities %s\n", complete));
-    code = gnutls_priority_set_direct(ssl->gnutls_state, complete, &err_pos);
-    CTRACE((tfp, "CHECK %d:%s\n", code, NonNull(err_pos)));
-    FREE(complete);
-}
-#endif /* USE_SET_DIRECT */
-
+#ifdef HAVE_GNUTLS_PROTOCOL_SET_PRIORITY
 static void RemoveProtocol(SSL * ssl, int protocol)
 {
     int j, k;
@@ -384,14 +280,10 @@ static void RemoveProtocol(SSL * ssl, int protocol)
     }
 
     if (changed) {
-#if USE_SET_DIRECT
-	CTRACE((tfp, "RemoveProtocol\n"));
-	UpdatePriority(ssl);
-#else
 	gnutls_protocol_set_priority(ssl->gnutls_state, protocols);
-#endif
     }
 }
+#endif
 
 /*
  * Initiate the TLS/SSL handshake with an TLS/SSL server.
@@ -403,10 +295,13 @@ int SSL_connect(SSL * ssl)
     gnutls_alert_description_t alert;
     const char *aname;
 
-    if (ssl->options & SSL_OP_NO_TLSv1)
+    if (ssl->options & SSL_OP_NO_TLSv1) {
+#ifdef HAVE_GNUTLS_PROTOCOL_SET_PRIORITY
 	RemoveProtocol(ssl, GNUTLS_TLS1);
-    if (ssl->options & SSL_OP_NO_SSLv3)
-	RemoveProtocol(ssl, GNUTLS_SSL3);
+#else
+	gnutls_priority_set_direct(ssl->gnutls_state, "NORMAL:-VERS-TLS1.0", NULL);
+#endif
+    }
 
     while ((rc = gnutls_handshake(ssl->gnutls_state)) < 0 &&
 	   !gnutls_error_is_fatal(rc)) {
@@ -473,8 +368,12 @@ SSL_CIPHER *SSL_get_current_cipher(SSL * ssl)
 	result->encrypts = gnutls_cipher_get(ssl->gnutls_state);
 	result->key_xchg = gnutls_kx_get(ssl->gnutls_state);
 	result->msg_code = gnutls_mac_get(ssl->gnutls_state);
-	result->compress = gnutls_compression_get(ssl->gnutls_state);
 	result->cert = gnutls_certificate_type_get(ssl->gnutls_state);
+#if !defined(_GNUTLS_GCC_VERSION) || (_GNUTLS_GCC_VERSION < 30100)
+	result->compress = gnutls_compression_get(ssl->gnutls_state);
+#else
+	result->compress = GNUTLS_COMP_UNKNOWN;
+#endif
     }
 
     return result;
@@ -531,21 +430,7 @@ SSL *SSL_new(SSL_CTX * ctx)
 	    ssl->ctx = ctx;
 
 	    gnutls_init(&ssl->gnutls_state, ctx->method->connend);
-
-#if USE_SET_DIRECT
-	    UpdatePriority(ssl);
-#else
-	    gnutls_protocol_set_priority(ssl->gnutls_state,
-					 ctx->method->priority.protocol);
-	    gnutls_cipher_set_priority(ssl->gnutls_state,
-				       ctx->method->priority.encrypts);
-	    gnutls_compression_set_priority(ssl->gnutls_state,
-					    ctx->method->priority.compress);
-	    gnutls_kx_set_priority(ssl->gnutls_state,
-				   ctx->method->priority.key_xchg);
-	    gnutls_mac_set_priority(ssl->gnutls_state,
-				    ctx->method->priority.msg_code);
-#endif
+	    gnutls_set_default_priority(ssl->gnutls_state);
 
 	    gnutls_credentials_set(ssl->gnutls_state, GNUTLS_CRD_CERTIFICATE,
 				   ssl->gnutls_cred);
@@ -553,11 +438,11 @@ SSL *SSL_new(SSL_CTX * ctx)
 		gnutls_certificate_set_x509_trust_file(ssl->gnutls_cred,
 						       ctx->certfile,
 						       ctx->certfile_type);
-	    if (ctx->keyfile)
+	    if (ctx->client_keyfile)
 		gnutls_certificate_set_x509_key_file(ssl->gnutls_cred,
-						     ctx->certfile,
-						     ctx->keyfile,
-						     ctx->keyfile_type);
+						     ctx->client_certfile,
+						     ctx->client_keyfile,
+						     ctx->client_keyfile_type);
 	    ssl->verify_mode = ctx->verify_mode;
 	    ssl->verify_callback = ctx->verify_callback;
 
@@ -565,8 +450,11 @@ SSL *SSL_new(SSL_CTX * ctx)
 
 	    ssl->rfd = (gnutls_transport_ptr_t) (-1);
 	    ssl->wfd = (gnutls_transport_ptr_t) (-1);
+	    ssl->bytes_sent = 0;
+	    ssl->sendbuffer = 0;
 	}
     }
+
     return ssl;
 }
 
@@ -578,7 +466,29 @@ int SSL_read(SSL * ssl, void *buffer, int length)
 {
     int rc;
 
-    rc = gnutls_record_recv(ssl->gnutls_state, buffer, length);
+    do {
+	rc = (int) gnutls_record_recv(ssl->gnutls_state, buffer, (size_t) length);
+    }
+    while ((rc == GNUTLS_E_AGAIN) || (rc == GNUTLS_E_INTERRUPTED));
+
+    if (rc < 0 && gnutls_error_is_fatal(rc) == 0) {
+	if (rc == GNUTLS_E_REHANDSHAKE) {
+	    (void) gnutls_handshake(ssl->gnutls_state);
+	    do {
+		rc = (int) gnutls_record_send(ssl->gnutls_state,
+					      ssl->sendbuffer,
+					      (size_t) ssl->bytes_sent);
+	    }
+	    while ((rc == GNUTLS_E_AGAIN) || (rc == GNUTLS_E_INTERRUPTED));
+	    do {
+		rc = (int) gnutls_record_recv(ssl->gnutls_state,
+					      buffer,
+					      (size_t) length);
+	    }
+	    while ((rc == GNUTLS_E_AGAIN) || (rc == GNUTLS_E_INTERRUPTED));
+	}
+    }
+
     ssl->last_error = rc;
 
     if (rc < 0) {
@@ -589,12 +499,32 @@ int SSL_read(SSL * ssl, void *buffer, int length)
     return rc;
 }
 
+#ifdef _WINDOWS
+static int Lynx_gtls_push(void *s, const void *buf, size_t len)
+{
+    return NETWRITE((SOCKET) s, buf, len);
+}
+
+/* This calls 'recv()' in a thread for every GnuTls pull. Maybe too much overhead?
+ */
+static int Lynx_gtls_pull(void *s, void *buf, size_t len)
+{
+    return NETREAD((SOCKET) s, buf, len);
+}
+#endif
+
 /*
  * Connect the SSL object with a file descriptor.
  * This always returns 1 (success) since GNU TLS does not check for errors.
  */
 int SSL_set_fd(SSL * ssl, int fd)
 {
+#ifdef _WINDOWS
+    /* register callback functions to send and receive data. */
+    gnutls_transport_set_push_function(ssl->gnutls_state, Lynx_gtls_push);
+    gnutls_transport_set_pull_function(ssl->gnutls_state, Lynx_gtls_pull);
+#endif
+
     gnutls_transport_set_ptr(ssl->gnutls_state,
 			     (gnutls_transport_ptr_t) (intptr_t) (fd));
     return 1;
@@ -607,19 +537,28 @@ int SSL_write(SSL * ssl, const void *buffer, int length)
 {
     int rc;
 
-    rc = gnutls_record_send(ssl->gnutls_state, buffer, length);
+    do {
+	rc = (int) gnutls_record_send(ssl->gnutls_state, buffer, (size_t) length);
+    }
+    while ((rc == GNUTLS_E_AGAIN) || (rc == GNUTLS_E_INTERRUPTED));
     ssl->last_error = rc;
 
     if (rc < 0) {
 	last_error = rc;
 	rc = 0;
+    } else {
+	size_t need = (size_t) rc;
+
+	free(ssl->sendbuffer);
+	ssl->sendbuffer = malloc(need);
+	ssl->bytes_sent = need;
     }
 
     return rc;
 }
 
 /*
- * Return method-data for SSL verion 3, with the option of rollback to SSL
+ * Return method-data for SSL version 3, with the option of rollback to SSL
  * version 2.
  */
 SSL_METHOD *SSLv23_client_method(void)
@@ -693,7 +632,7 @@ SSL_METHOD *SSLv23_client_method(void)
 static int add_name(char *target, int len, const char *tag, const char *data)
 {
     if (*data != '\0') {
-	int need = strlen(tag) + 2;
+	int need = (int) strlen(tag) + 2;
 
 	target += strlen(target);
 	if (need < len) {
@@ -703,10 +642,10 @@ static int add_name(char *target, int len, const char *tag, const char *data)
 	    len -= need;
 	    target += need;
 	}
-	need = strlen(data);
+	need = (int) strlen(data);
 	if (need >= len - 1)
 	    need = len - 1;
-	strncat(target, data, need)[need] = '\0';
+	strncat(target, data, (size_t) need)[need] = '\0';
     }
     return len;
 }
@@ -738,8 +677,9 @@ char *X509_NAME_oneline(X509_NAME * source, char *target, int len)
  */
 X509_NAME *X509_get_issuer_name(const X509 * cert)
 {
-    X509_NAME *result;
+    static X509_NAME *result;
 
+    free(result);
     if ((result = typeCalloc(X509_NAME)) != 0) {
 	if (ExtractCertificate(cert, result, 1) < 0) {
 	    free(result);
@@ -754,8 +694,9 @@ X509_NAME *X509_get_issuer_name(const X509 * cert)
  */
 X509_NAME *X509_get_subject_name(const X509 * cert)
 {
-    X509_NAME *result;
+    static X509_NAME *result;
 
+    free(result);
     if ((result = typeCalloc(X509_NAME)) != 0) {
 	if (ExtractCertificate(cert, result, 0) < 0) {
 	    free(result);

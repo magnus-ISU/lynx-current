@@ -1,5 +1,5 @@
 /*
- * $LynxId: UCAux.h,v 1.18 2010/11/07 21:20:59 tom Exp $
+ * $LynxId: UCAux.h,v 1.22 2014/12/10 09:48:41 tom Exp $
  */
 #ifndef UCAUX_H
 #define UCAUX_H
@@ -46,6 +46,21 @@ extern "C" {
     };
     typedef struct _UCTransParams UCTransParams;
 
+    typedef struct {
+	char utf_count;
+	UCode_t utf_char;
+	char utf_buf[8];
+	char *utf_buf_p;
+    } UTFDecodeState;
+
+    typedef enum {
+	dUTF8_ok,
+	dUTF8_err,
+	dUTF8_more
+    } dUTF8;
+
+    extern dUTF8 HTDecodeUTF8(UTFDecodeState * me, int *c_in_out, UCode_t *result);
+
     extern void UCSetTransParams(UCTransParams * pT, int cs_in,
 				 const LYUCcharset *p_in,
 				 int cs_out,
@@ -69,7 +84,7 @@ extern "C" {
     extern BOOL UCConvertUniToUtf8(UCode_t code,
 				   char *buffer);
 
-    extern UCode_t UCGetUniFromUtf8String(char **ppuni);
+    extern UCode_t UCGetUniFromUtf8String(const char **ppuni);
 
 #ifdef __cplusplus
 }

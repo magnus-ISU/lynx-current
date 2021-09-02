@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTAccess.c,v 1.79 2013/11/28 11:11:05 tom Exp $
+ * $LynxId: HTAccess.c,v 1.85 2019/08/24 00:27:06 tom Exp $
  *
  *		Access Manager					HTAccess.c
  *		==============
@@ -724,7 +724,21 @@ HTStream *HTSaveStream(HTParentAnchor *anchor)
     return p->saveStream(anchor);
 }
 
+int redirection_limit = 10;
 int redirection_attempts = 0;	/* counter in HTLoadDocument */
+
+static BOOL too_many_redirections(void)
+{
+    if (redirection_attempts > redirection_limit) {
+	char *msg = NULL;
+
+	HTSprintf0(&msg, TOO_MANY_REDIRECTIONS, redirection_limit);
+	free(msg);
+	redirection_attempts = 0;
+	return TRUE;
+    }
+    return FALSE;
+}
 
 /*	Load a document - with logging etc		HTLoadDocument()
  *	----------------------------------
@@ -754,7 +768,9 @@ static BOOL HTLoadDocument(const char *full_address,	/* may include #fragment */
     char *cp;
     BOOL ForcingNoCache = LYforce_no_cache;
 
-    CTRACE((tfp, "HTAccess: loading document %s\n", address_to_load));
+    CTRACE((tfp, "HTAccess: loading document %s\n", NonNull(address_to_load)));
+    if (isEmpty(address_to_load))
+	return NO;
 
     /*
      * Free use_this_url_instead and reset permanent_redirection if not done
@@ -763,16 +779,7 @@ static BOOL HTLoadDocument(const char *full_address,	/* may include #fragment */
     FREE(use_this_url_instead);
     permanent_redirection = FALSE;
 
-    /*
-     * Make sure some yoyo doesn't send us 'round in circles with redirecting
-     * URLs that point back to themselves.  We'll set the original Lynx limit
-     * of 10 redirections per requested URL from a user, because the HTTP/1.1
-     * will no longer specify a restriction to 5, but will leave it up to the
-     * browser's discretion, in deference to Microsoft.  - FM
-     */
-    if (redirection_attempts > 10) {
-	redirection_attempts = 0;
-	HTAlert(TOO_MANY_REDIRECTIONS);
+    if (too_many_redirections()) {
 	return NO;
     }
 
@@ -814,9 +821,8 @@ static BOOL HTLoadDocument(const char *full_address,	/* may include #fragment */
 	    /*
 	     * Don't exceed the redirection_attempts limit.  - FM
 	     */
-	    if (++redirection_attempts > 10) {
-		HTAlert(TOO_MANY_REDIRECTIONS);
-		redirection_attempts = 0;
+	    ++redirection_attempts;
+	    if (too_many_redirections()) {
 		FREE(use_this_url_instead);
 		return NO;
 	    }
@@ -1118,10 +1124,17 @@ static BOOL HTLoadDocument(const char *full_address,	/* may include #fragment */
  */
 BOOL HTLoadAbsolute(const DocAddress *docaddr)
 {
-    return HTLoadDocument(docaddr->address,
-			  HTAnchor_findAddress(docaddr),
-			  (HTOutputFormat ? HTOutputFormat : WWW_PRESENT),
-			  HTOutputStream);
+    BOOL result;
+    HTParentAnchor *anchor = HTAnchor_findAddress(docaddr);
+
+    result = HTLoadDocument(docaddr->address,
+			    anchor,
+			    (HTOutputFormat ? HTOutputFormat : WWW_PRESENT),
+			    HTOutputStream);
+    if (!result) {
+	HTAnchor_delete(anchor->parent);
+    }
+    return result;
 }
 
 #ifdef NOT_USED_CODE
@@ -1283,8 +1296,10 @@ BOOL HTSearch(const char *keywords,
     if (escaped == NULL)
 	outofmem(__FILE__, "HTSearch");
 
-    assert(escaped != NULL);
-
+    if (here->isIndexAction == NULL) {
+	free(escaped);
+	return FALSE;
+    }
     StrAllocCopy(address, here->isIndexAction);
 
     /*

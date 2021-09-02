@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTParse.c,v 1.75 2014/02/12 23:15:42 tom Exp $
+ * $LynxId: HTParse.c,v 1.98 2021/07/27 21:29:49 tom Exp $
  *
  *		Parse HyperText Document Address		HTParse.c
  *		================================
@@ -22,9 +22,14 @@
 #endif /* __MINGW32__ */
 #endif
 
-#ifdef USE_IDNA
+#ifdef USE_IDN2
+#include <idn2.h>
+#define FreeIdna(out)             idn2_free(out)
+#elif defined(USE_IDNA)
 #include <idna.h>
 #include <idn-free.h>
+#define FreeIdna(out)             idn_free(out)
+#define IDN2_OK                   IDNA_SUCCESS
 #endif
 
 #define HEX_ESCAPE '%'
@@ -185,11 +190,11 @@ static void scan(char *name,
 }				/*scan */
 
 #if defined(HAVE_ALLOCA) && !defined(LY_FIND_LEAKS)
-#define LYalloca(x)        alloca(x)
+#define LYalloca(x)        alloca((size_t)(x))
 #define LYalloca_free(x)   {}
 #else
-#define LYalloca(x)        malloc(x)
-#define LYalloca_free(x)   free(x)
+#define LYalloca(x)        malloc((size_t)(x))
+#define LYalloca_free(x)   free((void *)(x))
 #endif
 
 static char *strchr_or_end(char *string, int ch)
@@ -242,7 +247,7 @@ char *HTParsePort(char *host, int *portp)
     return result;
 }
 
-#ifdef USE_IDNA
+#if defined(USE_IDNA) || defined(USE_IDN2)
 static int hex_decode(int ch)
 {
     int result = -1;
@@ -265,17 +270,23 @@ static void convert_to_idna(char *host)
     size_t length = strlen(host);
     char *endhost = host + length;
     char *buffer = malloc(length + 1);
+    char *params = malloc(length + 1);
     char *output = NULL;
     char *src, *dst;
     int code;
     int hi, lo;
 
-    if (buffer != 0) {
+    if (buffer != NULL && params != NULL) {
 	code = TRUE;
+	*params = '\0';
 	for (dst = buffer, src = host; src < endhost; ++dst) {
 	    int ch = *src++;
 
-	    if (ch == HEX_ESCAPE) {
+	    if (RFC_3986_GEN_DELIMS(ch)) {
+		strcpy(params, src - 1);
+		*dst = '\0';
+		break;
+	    } else if (ch == HEX_ESCAPE) {
 		if ((src + 1) < endhost
 		    && (hi = hex_decode(src[0])) >= 0
 		    && (lo = hex_decode(src[1])) >= 0) {
@@ -293,19 +304,55 @@ static void convert_to_idna(char *host)
 	}
 	if (code) {
 	    *dst = '\0';
+#ifdef USE_IDN2
+#if (!defined(IDN2_VERSION_NUMBER) || IDN2_VERSION_NUMBER < 0x02000003)
+	    /*
+	     * Older libidn2 mishandles STD3, stripping underscores.
+	     */
+	    if (strchr(buffer, '_') != NULL) {
+		code = -1;
+	    } else
+#endif
+		switch (LYidnaMode) {
+		case LYidna2003:
+		    code = idn2_to_ascii_8z(buffer, &output, IDN2_TRANSITIONAL);
+		    break;
+		case LYidna2008:
+		    /* IDNA2008 rules without the TR46 amendments */
+		    code = idn2_to_ascii_8z(buffer, &output, 0);
+		    break;
+		case LYidnaTR46:
+		    code = idn2_to_ascii_8z(buffer, &output, IDN2_NONTRANSITIONAL
+					    | IDN2_NFC_INPUT);
+		    break;
+		case LYidnaCompat:
+		    /* IDNA2008 */
+		    code = idn2_to_ascii_8z(buffer, &output, IDN2_NONTRANSITIONAL
+					    | IDN2_NFC_INPUT);
+		    if (code == IDN2_DISALLOWED) {
+			/* IDNA2003 - compatible */
+			code = idn2_to_ascii_8z(buffer, &output, IDN2_TRANSITIONAL);
+		    }
+		    break;
+		}
+#else
 	    code = idna_to_ascii_8z(buffer, &output, IDNA_USE_STD3_ASCII_RULES);
-	    if (code == IDNA_SUCCESS) {
+#endif
+	    if (code == IDN2_OK) {
+		CTRACE((tfp, "convert_to_idna: `%s' -> `%s': OK\n", buffer, output));
 		strcpy(host, output);
+		strcat(host, params);
 	    } else {
 		CTRACE((tfp, "convert_to_idna: `%s': %s\n",
 			buffer,
 			idna_strerror((Idna_rc) code)));
 	    }
 	    if (output)
-		idn_free (output);
+		FreeIdna(output);
 	}
-	free(buffer);
     }
+    free(buffer);
+    free(params);
 }
 #define MIN_PARSE 80
 #else
@@ -317,6 +364,8 @@ static void convert_to_idna(char *host)
  *
  *	This returns those parts of a name which are given (and requested)
  *	substituting bits from the related name where necessary.
+ *
+ *	Originally based on RFC 1808, some details in RFC 3986 are used.
  *
  * On entry,
  *	aName		A filename given
@@ -378,8 +427,6 @@ char *HTParse(const char *aName,
     result = tail = (char *) LYalloca(need);
     if (result == NULL) {
 	outofmem(__FILE__, "HTParse");
-
-	assert(result != NULL);
     }
     *result = '\0';
     name = result + len;
@@ -473,8 +520,6 @@ char *HTParse(const char *aName,
 		*tail++ = '/';
 	    }
 	    strcpy(tail, given.host ? given.host : related.host);
-#define CLEAN_URLS
-#ifdef CLEAN_URLS
 	    /*
 	     * Ignore default port numbers, and trailing dots on FQDNs, which
 	     * will only cause identical addresses to look different.  (related
@@ -483,9 +528,12 @@ char *HTParse(const char *aName,
 	    {
 		char *p2, *h;
 		int portnumber;
+		int gen_delims = 0;
 
-		if ((p2 = StrChr(result, '@')) != NULL)
+		if ((p2 = HTSkipToAt(result, &gen_delims)) != NULL
+		    && gen_delims == 0) {
 		    tail = (p2 + 1);
+		}
 		p2 = HTParsePort(result, &portnumber);
 		if (p2 != NULL && acc_method != NULL) {
 		    /*
@@ -532,14 +580,13 @@ char *HTParse(const char *aName,
 		    }
 		}
 	    }
-#ifdef USE_IDNA
+#if defined(USE_IDNA) || defined(USE_IDN2)
 	    /*
 	     * Depending on locale-support, we could have a literal UTF-8
 	     * string as a host name, or a URL-encoded form of that.
 	     */
 	    convert_to_idna(tail);
 #endif
-#endif /* CLEAN_URLS */
 	}
     }
 
@@ -607,9 +654,12 @@ char *HTParse(const char *aName,
 	}
 
 	if (given.absolute) {	/* All is given */
+	    char *base = tail;
+
 	    if (wanted & PARSE_PUNCTUATION)
 		*tail++ = '/';
 	    strcpy(tail, given.absolute);
+	    HTSimplify(base, TRUE);
 	    CTRACE((tfp, "HTParse: (ABS)\n"));
 	} else if (related.absolute) {	/* Adopt path not name */
 	    char *base = tail;
@@ -635,16 +685,25 @@ char *HTParse(const char *aName,
 		    p[1] = '\0';	/* Remove filename */
 		    strcat(p, given.relative);	/* Add given one */
 		}
-		HTSimplify(base);
+		HTSimplify(base, FALSE);
 		if (*base == '\0')
 		    strcpy(base, "/");
+	    } else {
+		HTSimplify(base, TRUE);
+	    }
+	    if (base[0] == '/' && base[1] == '/') {
+		char *pz;
+
+		for (pz = base; (pz[0] = pz[1]) != '\0'; ++pz) ;
 	    }
 	    CTRACE((tfp, "HTParse: (Related-ABS)\n"));
 	} else if (given.relative) {
 	    strcpy(tail, given.relative);	/* what we've got */
+	    HTSimplify(tail, FALSE);
 	    CTRACE((tfp, "HTParse: (REL)\n"));
 	} else if (related.relative) {
 	    strcpy(tail, related.relative);
+	    HTSimplify(tail, FALSE);
 	    CTRACE((tfp, "HTParse: (Related-REL)\n"));
 	} else {		/* No inheritance */
 	    if (!isLYNXCGI(aName) &&
@@ -652,6 +711,8 @@ char *HTParse(const char *aName,
 		!isLYNXPROG(aName)) {
 		*tail++ = '/';
 		*tail = '\0';
+	    } else {
+		HTSimplify(tail, FALSE);
 	    }
 	    if (!strcmp(result, "news:/"))
 		result[5] = '*';
@@ -777,8 +838,6 @@ const char *HTParseAnchor(const char *aName)
 
 	    if (name == NULL) {
 		outofmem(__FILE__, "HTParseAnchor");
-
-		assert(name != NULL);
 	    }
 	    strcpy(name, aName);
 	    scan(name, &given);
@@ -801,143 +860,128 @@ const char *HTParseAnchor(const char *aName)
  *  be replaced by "" , and the sequence "/./" which may be replaced by "/".
  *  Simplification helps us recognize duplicate filenames.
  *
- *	Thus,	/etc/junk/../fred	becomes /etc/fred
- *		/etc/junk/./fred	becomes /etc/junk/fred
- *
- *	but we should NOT change
- *		http://fred.xxx.edu/../..
- *
- *	or	../../albert.html
+ *  RFC 3986 section 5.2.4 says to do this whether or not the path was relative.
  */
-void HTSimplify(char *filename)
+void HTSimplify(char *filename, BOOL absolute)
 {
+#define MY_FMT "HTParse HTSimplify\t(%s)"
+#ifdef NO_LYNX_TRACE
+#define debug_at(at)		/* nothing */
+#define atln		"?"
+#else
+    const char *atln;
+
+#define debug_at(at)	atln = at
+#endif
+    char *mark;
     char *p;
-    char *q, *q1;
+    size_t limit;
 
-    if (filename == NULL)
-	return;
+    CTRACE2(TRACE_HTPARSE,
+	    (tfp, MY_FMT " %s\n",
+	     filename,
+	     absolute ? "ABS" : "REL"));
 
-    if (!(filename[0] && filename[1]) ||
-	filename[0] == '?' || filename[1] == '?' || filename[2] == '?')
-	return;
+    if (LYIsPathSep(*filename) && !absolute)
+	++filename;
+    mark = filename;
+    limit = strlen(filename);
 
-    if (StrChr(filename, '/') != NULL) {
-	for (p = (filename + 2); *p; p++) {
-	    if (*p == '?') {
-		/*
-		 * We're still treating a ?searchpart as part of the path in
-		 * HTParse() and scan(), but if we encounter a '?' here, assume
-		 * it's the delimiter and break.  We also could check for a
-		 * parameter delimiter (';') here, but the current Fielding
-		 * draft (wisely or ill-advisedly :) says that it should be
-		 * ignored and collapsing be allowed in it's value).  The only
-		 * defined parameter at present is ;type=[A, I, or D] for ftp
-		 * URLs, so if there's a "/..", "/../", "/./", or terminal '.'
-		 * following the ';', it must be due to the ';' being an
-		 * unescaped path character and not actually a parameter
-		 * delimiter.  - FM
-		 */
-		break;
-	    }
-	    if (*p == '/') {
-		if ((p[1] == '.') && (p[2] == '.') &&
-		    (p[3] == '/' || p[3] == '?' || p[3] == '\0')) {
-		    /*
-		     * Handle "../", "..?" or "..".
-		     */
-		    for (q = (p - 1); (q >= filename) && (*q != '/'); q--)
-			/*
-			 * Back up to previous slash or beginning of string.
-			 */
-			;
-		    if ((q[0] == '/') &&
-			(StrNCmp(q, "/../", 4) &&
-			 StrNCmp(q, "/..?", 4)) &&
-			!((q - 1) > filename && q[-1] == '/')) {
-			/*
-			 * Not at beginning of string or in a host field, so
-			 * remove the "/xxx/..".
-			 */
-			q1 = (p + 3);
-			p = q;
-			while (*q1 != '\0')
-			    *p++ = *q1++;
-			*p = '\0';	/* terminate */
-			/*
-			 * Start again with previous slash.
-			 */
-			p = (q - 1);
-		    }
-		} else if (p[1] == '.' && p[2] == '/') {
-		    /*
-		     * Handle "./" by removing both characters.
-		     */
-		    q = p;
-		    q1 = (p + 2);
-		    while (*q1 != '\0')
-			*q++ = *q1++;
-		    *q = '\0';	/* terminate */
-		    p--;
-		} else if (p[1] == '.' && p[2] == '?') {
-		    /*
-		     * Handle ".?" by removing the dot.
-		     */
-		    q = (p + 1);
-		    q1 = (p + 2);
-		    while (*q1 != '\0')
-			*q++ = *q1++;
-		    *q = '\0';	/* terminate */
-		    p--;
-		} else if (p[1] == '.' && p[2] == '\0') {
-		    /*
-		     * Handle terminal "." by removing the character.
-		     */
-		    p[1] = '\0';
+    for (p = filename; *p; ++p) {
+	if (*p == '?' || *p == '#') {
+	    limit = (size_t) (p - filename);
+	    break;
+	}
+    }
+    while ((limit != 0) && (*filename != '\0')) {
+	size_t trim = 0;
+	size_t skip = 0;
+	size_t last = 0;
+
+	debug_at("?");
+	p = filename;
+	if (limit >= 2 && !memcmp(p, "./", 2)) {	/* 2A */
+	    debug_at("2A");
+	    trim = 2;
+	} else if (limit >= 3 && !memcmp(p, "../", 3)) {
+	    debug_at("2A2");
+	    trim = 3;
+	} else if (limit >= 3 && !memcmp(p, "/./", 3)) {	/* 2B */
+	    debug_at("2B");
+	    trim = 2;
+	    skip = 1;
+	} else if (limit == 2 && !memcmp(p, "/.", 2)) {
+	    debug_at("2B2");
+	    trim = 1;
+	    skip = 1;
+	} else if (limit >= 4 && !memcmp(p, "/../", 4)) {	/* 2C */
+	    debug_at("2C");
+	    trim = 3;
+	    skip = 1;
+	    last = 1;
+	} else if (limit == 3 && !memcmp(p, "/..", 3)) {
+	    debug_at("2C2");
+	    trim = 2;
+	    skip = 1;
+	    last = 1;
+	} else if (limit == 2 && !memcmp(p, "..", 2)) {		/* 2D */
+	    debug_at("2D");
+	    trim = 2;
+	} else if (limit == 1 && !memcmp(p, ".", 1)) {
+	    debug_at("2D2");
+	    trim = 1;
+	}
+	if (trim) {
+	    CTRACE2(TRACE_HTPARSE,
+		    (tfp, MY_FMT " trim %lu/%lu (%.*s) '%.*s' @%s\n",
+		     mark, (unsigned long) trim, (unsigned long) limit,
+		     (int) trim, p + skip, (int) limit, p, atln));
+	}
+	if (last) {
+	    char *prior = filename;
+
+	    if (prior != mark) {
+		--prior;
+		while (prior != mark && *prior != '/') {
+		    --prior;
 		}
+	    }
+	    if (prior != filename) {
+		trim += (size_t) (filename - prior);
+		limit += (size_t) (filename - prior);
+		filename = prior;
+		CTRACE2(TRACE_HTPARSE,
+			(tfp, MY_FMT " TRIM %lu/%lu (%.*s)\n",
+			 mark, (unsigned long) trim, (unsigned long) limit,
+			 (int) trim, filename + skip));
 	    }
 	}
-	if (p >= filename + 2 && *p == '?' && *(p - 1) == '.') {
-	    if (*(p - 2) == '/') {
-		/*
-		 * Handle "/.?" by removing the dot.
-		 */
-		q = p - 1;
-		q1 = p;
-		while (*q1 != '\0')
-		    *q++ = *q1++;
-		*q = '\0';
-	    } else if (*(p - 2) == '.' &&
-		       p >= filename + 4 && *(p - 3) == '/' &&
-		       (*(p - 4) != '/' ||
-			(p > filename + 4 && *(p - 5) != ':'))) {
-		/*
-		 * Handle "xxx/..?"
-		 */
-		for (q = (p - 4); (q > filename) && (*q != '/'); q--)
-		    /*
-		     * Back up to previous slash or beginning of string.
-		     */
-		    ;
-		if (*q == '/') {
-		    if (q > filename && *(q - 1) == '/' &&
-			!(q > filename + 1 && *(q - 1) != ':'))
-			return;
-		    q++;
+	if (trim) {
+	    limit -= trim;
+	    for (p = filename;; ++p) {
+		if ((p[0] = p[trim]) == '\0') {
+		    break;
 		}
-		if (StrNCmp(q, "../", 3) && StrNCmp(q, "./", 2)) {
-		    /*
-		     * Not after "//" at beginning of string or after "://",
-		     * and xxx is not ".." or ".", so remove the "xxx/..".
-		     */
-		    q1 = p;
-		    p = q;
-		    while (*q1 != '\0')
-			*p++ = *q1++;
-		    *p = '\0';	/* terminate */
+		if (skip) {
+		    p[0] = '/';
+		    skip = 0;
 		}
+	    }
+	    CTRACE2(TRACE_HTPARSE,
+		    (tfp, MY_FMT " loop %lu\n", mark, (unsigned long) limit));
+	} else {
+	    if (*filename == '/') {
+		++filename;
+		--limit;
+	    }
+	    while ((limit != 0) && (*filename != '/')) {
+		++filename;
+		--limit;
 	    }
 	}
     }
+    CTRACE2(TRACE_HTPARSE, (tfp, MY_FMT " done\n", mark));
+#undef MY_FMT
 }
 
 /*	Make Relative Name.					HTRelative()
@@ -1000,8 +1044,6 @@ char *HTRelative(const char *aName,
 	if (result == NULL)
 	    outofmem(__FILE__, "HTRelative");
 
-	assert(result != NULL);
-
 	result[0] = '\0';
 	for (; levels; levels--)
 	    strcat(result, "../");
@@ -1062,8 +1104,6 @@ char *HTEscape(const char *str,
     if (result == NULL)
 	outofmem(__FILE__, "HTEscape");
 
-    assert(result != NULL);
-
     for (q = result, p = str; *p; p++) {
 	unsigned char a = UCH(TOASCII(*p));
 
@@ -1105,8 +1145,6 @@ char *HTEscapeUnsafe(const char *str)
     if (result == NULL)
 	outofmem(__FILE__, "HTEscapeUnsafe");
 
-    assert(result != NULL);
-
     for (q = result, p = str; *p; p++) {
 	unsigned char a = UCH(TOASCII(*p));
 
@@ -1147,8 +1185,6 @@ char *HTEscapeSP(const char *str,
 
     if (result == NULL)
 	outofmem(__FILE__, "HTEscape");
-
-    assert(result != NULL);
 
     for (q = result, p = str; *p; p++) {
 	unsigned char a = UCH(TOASCII(*p));
@@ -1317,8 +1353,6 @@ void HTMake822Word(char **str,
     result = AlloCopy(p, *str, added + 1);
     if (result == NULL)
 	outofmem(__FILE__, "HTMake822Word");
-
-    assert(result != NULL);
 
     q = result;
     if (quoted)

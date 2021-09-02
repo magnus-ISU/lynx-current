@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTString.c,v 1.72 2013/11/28 11:14:49 tom Exp $
+ * $LynxId: HTString.c,v 1.81 2021/06/09 20:16:06 tom Exp $
  *
  *	Case-independent string comparison		HTString.c
  *
@@ -12,6 +12,7 @@
  */
 
 #include <HTUtils.h>
+#include <HTFile.h>
 
 #include <LYLeaks.h>
 #include <LYUtils.h>
@@ -306,7 +307,6 @@ char *HTSACopy(char **dest,
 	    *dest = (char *) malloc(size);
 	    if (*dest == NULL)
 		outofmem(__FILE__, "HTSACopy");
-	    assert(*dest != NULL);
 	    MemCpy(*dest, src, size);
 	}
     } else {
@@ -327,13 +327,11 @@ char *HTSACat(char **dest,
 	    *dest = (char *) realloc(*dest, length + strlen(src) + 1);
 	    if (*dest == NULL)
 		outofmem(__FILE__, "HTSACat");
-	    assert(*dest != NULL);
 	    strcpy(*dest + length, src);
 	} else {
 	    *dest = (char *) malloc(strlen(src) + 1);
 	    if (*dest == NULL)
 		outofmem(__FILE__, "HTSACat");
-	    assert(*dest != NULL);
 	    strcpy(*dest, src);
 	}
     }
@@ -367,7 +365,6 @@ char *HTSACopy_extra(char **dest,
 	    *dest = (char *) malloc(size + EXTRA_SIZE);
 	    if (*dest == NULL)
 		outofmem(__FILE__, "HTSACopy_extra");
-	    assert(*dest != NULL);
 	    *(EXTRA_TYPE *) (void *) (*dest) = size;
 	    *dest += EXTRA_SIZE;
 	}
@@ -382,7 +379,7 @@ char *HTSACopy_extra(char **dest,
  *	---------------
  *
  * On entry,
- *	*pstr	points to a string containig white space separated
+ *	*pstr	points to a string containing white space separated
  *		field, optionlly quoted.
  *
  * On exit,
@@ -432,8 +429,8 @@ char *HTNextField(char **pstr)
  *		If NULL, default is white space "," ";" or "=".
  *		The word can optionally be quoted or enclosed with
  *		chars from bracks.
- *		Comments surrrounded by '(' ')' are filtered out
- *		unless they are specifically reqested by including
+ *		Comments surrounded by '(' ')' are filtered out
+ *		unless they are specifically requested by including
  *		' ' or '(' in delims or bracks.
  *	bracks	lists bracketing chars.  Some are recognized as
  *		special, for those give the opening char.
@@ -587,7 +584,6 @@ static char *HTAlloc(char *ptr, size_t length)
 	ptr = (char *) malloc(length);
     if (ptr == 0)
 	outofmem(__FILE__, "HTAlloc");
-    assert(ptr != NULL);
     return ptr;
 }
 
@@ -628,7 +624,7 @@ typedef enum {
 PUBLIC_IF_FIND_LEAKS char *StrAllocVsprintf(char **pstr,
 					    size_t dst_len,
 					    const char *fmt,
-					    va_list * ap)
+					    va_list *ap)
 {
 #ifdef HAVE_VASPRINTF
     /*
@@ -699,8 +695,6 @@ PUBLIC_IF_FIND_LEAKS char *StrAllocVsprintf(char **pstr,
     if ((fmt_ptr = malloc(need * NUM_WIDTH)) == 0
 	|| (tmp_ptr = malloc(tmp_len)) == 0) {
 	outofmem(__FILE__, "StrAllocVsprintf");
-	assert(fmt_ptr != NULL);
-	assert(tmp_ptr != NULL);
     }
 #endif /* SAVE_TIME_NOT_SPACE */
 
@@ -802,7 +796,7 @@ PUBLIC_IF_FIND_LEAKS char *StrAllocVsprintf(char **pstr,
 			VA_POINT(char *);
 
 			if (prec < 0)
-			    prec = strlen(pval);
+			    prec = (int) strlen(pval);
 			used = 's';
 			break;
 		    case 'p':
@@ -904,7 +898,7 @@ PUBLIC_IF_FIND_LEAKS char *StrAllocVsprintf(char **pstr,
 #ifdef HTSprintf		/* if hidden by LYLeaks stuff */
 #undef HTSprintf
 #endif
-char *HTSprintf(char **pstr, const char *fmt,...)
+char *HTSprintf(char **pstr, const char *fmt, ...)
 {
     char *result = 0;
     size_t inuse = 0;
@@ -931,7 +925,7 @@ char *HTSprintf(char **pstr, const char *fmt,...)
 #ifdef HTSprintf0		/* if hidden by LYLeaks stuff */
 #undef HTSprintf0
 #endif
-char *HTSprintf0(char **pstr, const char *fmt,...)
+char *HTSprintf0(char **pstr, const char *fmt, ...)
 {
     char *result = 0;
     va_list ap;
@@ -972,8 +966,6 @@ char *HTQuoteParameter(const char *parameter)
     result = (char *) malloc(last + 5 * quoted + 3);
     if (result == NULL)
 	outofmem(__FILE__, "HTQuoteParameter");
-
-    assert(result != NULL);
 
     n = 0;
 #if (USE_QUOTED_PARAMETER == 1)
@@ -1053,6 +1045,47 @@ static const char *HTAfterCommandArg(const char *command,
     return command;
 }
 
+#if USE_QUOTED_PARAMETER
+/*
+ * Recursively trim possible parameters of the source until an existing file
+ * is found.  If no file is found, return -1.  If a file is found, return
+ * the offset to a blank just after the filename.
+ *
+ * TODO: this could be smarter about trimming, e.g., matching quotes.
+ */
+static int skipPathname(const char *target, const char *source)
+{
+    int result = -1;
+    const char *last;
+    struct stat stat_info;
+
+    if (HTStat(target, &stat_info) == 0
+	&& S_ISREG(stat_info.st_mode)) {
+	result = 0;
+    } else if (*target != ' ' && (last = strrchr(target, ' ')) != NULL) {
+	char *temp = NULL;
+	int inner;
+
+	while (last != target && last[-1] == ' ')
+	    --last;
+
+	StrAllocCopy(temp, target);
+	result = (int) (last - target);
+	temp[result] = '\0';
+
+	if ((inner = skipPathname(temp, source)) < 0) {
+	    result = -1;
+	} else if (inner > 0) {
+	    result = inner;
+	}
+
+	FREE(temp);
+    }
+    CTRACE((tfp, "skip/recur %d '%s'\n", result, target));
+    return result;
+}
+#endif
+
 /*
  * Like HTAddParam, but the parameter may be an environment variable, which we
  * will expand and append.  Do this only for things like the command-verb,
@@ -1069,6 +1102,8 @@ void HTAddXpand(char **result,
 		int number,
 		const char *parameter)
 {
+    if (parameter == NULL)
+	parameter = "";
     if (number > 0) {
 	const char *last = HTAfterCommandArg(command, number - 1);
 	const char *next = last;
@@ -1088,7 +1123,32 @@ void HTAddXpand(char **result,
 		    HTSACat(result, last);
 		    (*result)[len] = 0;
 		}
-		HTSACat(result, parameter);
+		if (LYisAbsPath(parameter)) {
+		    int skip = skipPathname(parameter, parameter);
+		    char *quoted;
+
+		    if (skip > 0) {
+			char *temp = NULL;
+
+			StrAllocCopy(temp, parameter);
+			temp[skip] = 0;
+
+			quoted = HTQuoteParameter(temp);
+			HTSACat(result, quoted);
+			FREE(quoted);
+
+			temp[skip] = ' ';
+			HTSACat(result, temp + skip);
+			FREE(temp);
+		    } else {
+			quoted = HTQuoteParameter(parameter);
+			HTSACat(result, quoted);
+			FREE(quoted);
+		    }
+		} else {
+		    /* leave it unquoted, e.g., environment variable expanded */
+		    HTSACat(result, parameter);
+		}
 		CTRACE((tfp, "PARAM-EXP:%s\n", *result));
 		return;
 	    }
@@ -1232,12 +1292,8 @@ void HTSABCopy(bstring **dest, const char *src,
 	if ((t = (bstring *) malloc(sizeof(bstring))) == NULL)
 	      outofmem(__FILE__, "HTSABCopy");
 
-	assert(t != NULL);
-
 	if ((t->str = typeMallocn(char, need)) == NULL)
 	      outofmem(__FILE__, "HTSABCopy");
-
-	assert(t->str != NULL);
 
 	MemCpy(t->str, src, len);
 	t->len = len;
@@ -1286,14 +1342,10 @@ void HTSABCat(bstring **dest, const char *src,
 	    if ((t = typecalloc(bstring)) == NULL)
 		  outofmem(__FILE__, "HTSACat");
 
-	    assert(t != NULL);
-
 	    t->str = typeMallocn(char, need);
 	}
 	if (t->str == NULL)
 	    outofmem(__FILE__, "HTSACat");
-
-	assert(t->str != NULL);
 
 	MemCpy(t->str + t->len, src, len);
 	t->len += len;
@@ -1347,7 +1399,7 @@ void HTSABFree(bstring **ptr)
  * Use this function to perform formatted sprintf's onto the end of a bstring.
  * The bstring may contain embedded nulls; the formatted portions must not.
  */
-bstring *HTBprintf(bstring **pstr, const char *fmt,...)
+bstring *HTBprintf(bstring **pstr, const char *fmt, ...)
 {
     bstring *result = 0;
     char *temp = 0;

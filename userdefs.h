@@ -1,13 +1,13 @@
 /*
- * $LynxId: userdefs.h,v 1.295 2014/03/10 22:07:34 tom Exp $
+ * $LynxId: userdefs.h,v 1.358 2021/08/01 18:50:51 tom Exp $
  *
  * Lynx - Hypertext navigation system
  *
+ *   Copyright 1996-2020,2021 Thomas E. Dickey and Lynx Developers Group
+ *   Note: GNU General Public License is not a copyright.
+ *
  *   (c) Copyright 1992, 1993, 1994 University of Kansas
  *	 1995, 1996: GNU General Public License
- *
- *   Copyright 1996-2013,2014 Thomas E. Dickey and Lynx Developers Group
- *   Note: GNU General Public License is not a copyright.
  */
 
 /*******************************************************************
@@ -483,7 +483,10 @@
  * Normally we expect you will connect to a remote site, e.g., the Lynx starting
  * site:
  */
-#define STARTFILE "http://lynx.isc.org/"
+#ifndef HOMEPAGE_URL
+#define HOMEPAGE_URL "https://lynx.invisible-island.net/"
+#endif
+#define STARTFILE HOMEPAGE_URL
 /*
  * As an alternative, you may want to use a local URL.  A good choice for this
  * is the user's home directory:
@@ -502,12 +505,12 @@
  *   for this distribution (use SHELL syntax including the device
  *   on VMS systems).
  * The default HELPFILE is:
- * http://lynx.isc.org/release/breakout/lynx_help/lynx_help_main.html
+ * https://lynx.invisible-island.net/lynx_help/lynx_help_main.html
  *   This should be changed here or in lynx.cfg to the local path.
  * The definition here can be overridden at run time by defining a
  * "LYNX_HELPFILE" environment variable.
  */
-#define HELPFILE "http://lynx.isc.org/release/breakout/lynx_help/lynx_help_main.html"
+#define HELPFILE "https://lynx.invisible-island.net/lynx_help/lynx_help_main.html"
 /* #define HELPFILE "file://localhost/PATH_TO/lynx_help/lynx_help_main.html" */
 
 /*****************************
@@ -613,7 +616,7 @@
  * name of the system on which Lynx is running) will all be passed as
  * local.  A different definition in lynx.cfg will override this one.
  */
-/* #define LYNX_HOST_NAME "www.cc.ukans.edu" */
+/* #define LYNX_HOST_NAME "localhost" */
 
 /*********************
  * LOCAL_DOMAIN is used for a tail match with the ut_host element of
@@ -624,7 +627,7 @@
  * if your system does not have utmp capabilities.  CHANGE THIS here
  * or in lynx.cfg.
  */
-#define LOCAL_DOMAIN "ukans.edu"
+#define LOCAL_DOMAIN "localdomain"
 
 /********************************
 * The DEFAULT_CACHE_SIZE specifies the number of WWW documents to be
@@ -1442,11 +1445,11 @@
  * the version definition with the Project Version on checkout.  Just
  * ignore it. - kw */
 /* $Format: "#define LYNX_VERSION \"$ProjectVersion$\""$ */
-#define LYNX_VERSION "2.8.9dev.1"
-#define LYNX_WWW_HOME "http://lynx.isc.org/"
-#define LYNX_WWW_DIST "http://lynx.isc.org/current/"
+#define LYNX_VERSION "2.9.0dev.9"
+#define LYNX_WWW_HOME "https://lynx.invisible-island.net/"
+#define LYNX_WWW_DIST "https://lynx.invisible-island.net/current/"
 /* $Format: "#define LYNX_DATE \"$ProjectDate$\""$ */
-#define LYNX_DATE "Wed, 12 Mar 2014 12:14:45 -0700"
+#define LYNX_DATE "Sun, 01 Aug 2021 14:50:52 -0400"
 #define LYNX_DATE_OFF 5		/* truncate the automatically-generated date */
 #define LYNX_DATE_LEN 11	/* truncate the automatically-generated date */
 
@@ -1544,6 +1547,10 @@
 
 #ifndef USE_BLAT_MAILER
 #define USE_BLAT_MAILER 1
+#endif
+
+#ifndef LYNX_CFG_PATH
+#define LYNX_CFG_PATH "."
 #endif
 
 #else
@@ -1838,7 +1845,7 @@
  */
 
 /*****************************
- * These can be uncommmented to get more detail when debugging changes to
+ * These can be uncommented to get more detail when debugging changes to
  * the color-style and layout logic.
  */
 /*#define DEBUG_APPCH 1*/

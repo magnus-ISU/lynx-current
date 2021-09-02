@@ -1,4 +1,4 @@
-/* $LynxId: LYStrings.c,v 1.258 2013/11/28 11:57:39 tom Exp $ */
+/* $LynxId: LYStrings.c,v 1.278 2021/06/09 22:29:17 tom Exp $ */
 #include <HTUtils.h>
 #include <HTCJK.h>
 #include <UCAux.h>
@@ -592,7 +592,7 @@ char *LYstrncpy(char *target,
     if (n > 0) {
 	if (n > len)
 	    n = len;
-	(void) StrNCpy(target, source, n);
+	(void) memcpy(target, source, (size_t) n);
     } else {
 	n = 0;
     }
@@ -813,10 +813,6 @@ static int myGetChar(void)
 #define GetChar() myGetChar()
 #endif
 
-#if !defined(GetChar) && defined(SNAKE)
-#define GetChar() wgetch(LYwin)
-#endif
-
 #if !defined(GetChar) && defined(VMS)
 #define GetChar() ttgetc()
 #endif
@@ -1004,12 +1000,14 @@ static const char *expand_tiname(const char *first, size_t len, char **result, c
 {
     char name[BUFSIZ];
     int code;
+    TERMTYPE *tp = (TERMTYPE *) (cur_term);
 
     LYStrNCpy(name, first, len);
+    **result = '\0';
     if ((code = lookup_tiname(name, strnames)) >= 0
 	|| (code = lookup_tiname(name, strfnames)) >= 0) {
-	if (cur_term->type.Strings[code] != 0) {
-	    LYStrNCpy(*result, cur_term->type.Strings[code], (final - *result));
+	if (tp->Strings[code] != 0) {
+	    LYStrNCpy(*result, tp->Strings[code], (final - *result));
 	    (*result) += strlen(*result);
 	}
     }
@@ -1188,7 +1186,7 @@ static Keysym_String_List *lookupKeysymByName(const char *name)
     return result;
 }
 
-int map_string_to_keysym(const char *str, int *keysym)
+int map_string_to_keysym(const char *str, int *keysym, int internal)
 {
     int modifier = 0;
 
@@ -1259,7 +1257,9 @@ int map_string_to_keysym(const char *str, int *keysym)
 	Keysym_String_List *k = lookupKeysymByName(str);
 
 	if (k != 0) {
-	    *keysym = k->value;
+	    *keysym = (internal
+		       ? k->internal
+		       : k->value);
 	}
     }
 
@@ -1347,16 +1347,17 @@ static int setkey_cmd(char *parse)
 	    }
 	    if (t != s)
 		*t = '\0';
-	    if (map_string_to_keysym(s, &keysym) >= 0) {
+	    if (map_string_to_keysym(s, &keysym, FALSE) >= 0) {
 		if (!unescape_string(parse, buf, buf + sizeof(buf) - 1)) {
 		    MY_TRACE((tfp, "KEYMAP(SKIP) could unescape key\n"));
 		    return 0;	/* Trace the failure and continue. */
 		}
 		if (LYTraceLogFP == 0) {
-		    MY_TRACE((tfp, "KEYMAP(DEF) keysym=%#x\n", keysym));
+		    MY_TRACE((tfp, "KEYMAP(DEF) keysym=%#x\n",
+			      (unsigned) keysym));
 		} else {
 		    MY_TRACE((tfp, "KEYMAP(DEF) keysym=%#x, seq='%s'\n",
-			      keysym, buf));
+			      (unsigned) keysym, buf));
 		}
 		return define_key(buf, keysym);
 	    } else {
@@ -1386,7 +1387,7 @@ static int unsetkey_cmd(char *parse)
 	{
 	    int keysym;
 
-	    if (map_string_to_keysym(parse, &keysym) >= 0)
+	    if (map_string_to_keysym(parse, &keysym, FALSE) >= 0)
 		define_key((char *) 0, keysym);
 	}
 #endif
@@ -1432,6 +1433,7 @@ static int read_keymap_file(void)
     if ((fp = fopen(file, "r")) == 0)
 	return 0;
 
+    CTRACE((tfp, "read_keymap_file %s\n", file));
     linenum = 0;
     while (LYSafeGets(&line, fp) != 0) {
 	char *s = LYSkipBlanks(line);
@@ -1829,8 +1831,7 @@ static int LYgetch_for(int code)
     }
 #endif /* !USE_SLANG || VMS */
 
-    CTRACE((tfp, "GETCH%d: Got %#x.\n", code, c));
-#ifdef MISC_EXP
+    CTRACE((tfp, "GETCH%d: Got %#x.\n", code, (unsigned) c));
     if (LYNoZapKey > 1 && errno != EINTR &&
 	(c == EOF
 #ifdef USE_SLANG
@@ -1851,8 +1852,6 @@ static int LYgetch_for(int code)
 	    goto re_read;
 	}
     }
-#endif /* MISC_EXP */
-
 #ifdef USE_GETCHAR
     if (c == EOF && errno == EINTR)	/* Ctrl-Z causes EINTR in getchar() */
 	goto re_read;
@@ -2981,7 +2980,7 @@ void LYFinishEdit(FieldEditor * edit)
     FREE(Offs2Col);
 }
 
-void LYSetupEdit(FieldEditor * edit, char *old_value, size_t buffer_limit, int display_limit)
+void LYSetupEdit(FieldEditor * edit, char *old_value, unsigned buffer_limit, int display_limit)
 {
     CTRACE((tfp, "LYSetupEdit buffer %lu, display %d:%s\n",
 	    (unsigned long) buffer_limit,
@@ -2990,7 +2989,7 @@ void LYSetupEdit(FieldEditor * edit, char *old_value, size_t buffer_limit, int d
 
     BufLimit = buffer_limit;
     if (buffer_limit == 0)
-	buffer_limit = strlen(old_value) + 1;
+	buffer_limit = (unsigned) strlen(old_value) + 1;
 
     /*
      * Initialize edit record
@@ -3065,6 +3064,39 @@ static int mbcs_glyphs(char *s, int len)
 }
 
 /*
+ * Check if there are no continuation bytes in the multibyte (sub)string of
+ * length len.
+ */
+static int mbcs_valid(char *s, int len, int limit)
+{
+    int i;
+    int result = FALSE;
+
+    if (IS_UTF8_TTY) {
+	for (i = 0; s[i] && i < limit; i++) {
+	    if (!IS_UTF8_EXTRA(s[i])) {
+		if ((i + 1) == len) {
+		    result = TRUE;
+		    break;
+		}
+	    }
+	}
+    } else if (IS_CJK_TTY) {
+	for (i = 0; s[i] && i < limit; i++) {
+	    if (!is8bits(s[i])) {
+		if ((i + 1) == len) {
+		    result = TRUE;
+		    break;
+		}
+	    }
+	}
+    } else {
+	result = TRUE;
+    }
+    return result;
+}
+
+/*
  * Calculates offset in bytes of a glyph at cell position pos.
  */
 static int mbcs_skip(char *s, int pos)
@@ -3101,15 +3133,23 @@ static int cell2char(char *s, int cells)
     int have;
 
     CTRACE_EDIT((tfp, "cell2char(%d) %d:%s\n", cells, len, s));
-    /* FIXME - make this a binary search */
     if (len != 0) {
+	int best = -1;
+
 	for (pos = 0; pos <= len; ++pos) {
 	    have = LYstrExtent2(s, pos);
 	    CTRACE_EDIT((tfp, "  %2d:%2d:%.*s\n", pos, have, pos, s));
 	    if (have >= cells) {
-		break;
+		if (cells <= 0)
+		    break;
+		/* the best solution is the one with the most bytes */
+		best = pos;
+		if (mbcs_valid(s, pos, len))
+		    break;
 	    }
 	}
+	if (best >= 0)
+	    pos = best;
 	if (pos > len)
 	    pos = len;
     } else {
@@ -3188,9 +3228,11 @@ int LYEditInsert(FieldEditor * edit, unsigned const char *s,
 		} else
 		    utfbuf[0] = (char) ucode;
 	    }
-	    StrNCpy(Buffer + off, utfbuf, l);
-	    edited = 1;
-	    off += l;
+	    if ((size_t) (off + l) <= BufAlloc) {
+		memcpy(Buffer + off, utfbuf, (size_t) l);
+		edited = 1;
+		off += l;
+	    }
 	    s++;
 	}
 	if (tail)
@@ -3278,8 +3320,8 @@ int LYDoEdit(FieldEditor * edit, int ch,
 	 */
 	if (!IS_CJK_TTY && LYlowest_eightbit[current_char_set] > 0x97)
 	    return (ch);
-	/* FALLTHRU */
 #endif
+	/* FALLTHRU */
     case LYE_CHAR:
 	uch = UCH(ch);
 	LYEditInsert(edit, &uch, 1, map_active, maxMessage);
@@ -3992,8 +4034,6 @@ static char **sortedList(HTList *list, int ignorecase)
     if (result == 0)
 	outofmem(__FILE__, "sortedList");
 
-    assert(result != 0);
-
     while (!HTList_isEmpty(list))
 	result[j++] = (char *) HTList_nextObject(list);
 
@@ -4123,6 +4163,32 @@ static void draw_option(WINDOW * win, int entry,
 #endif /* USE_SLANG */
 }
 
+static void show_popup_status(int cur_choice,
+			      STRING2PTR choices,
+			      int disabled,
+			      int for_mouse)
+{
+    if (disabled) {
+	_statusline(CHOICE_LIST_UNM_MSG);
+    } else if (!for_mouse) {
+	if (fields_are_named()) {
+	    char *status_msg = NULL;
+
+	    HTSprintf0(&status_msg, CHOICE_LIST_ADV_MSG, choices[cur_choice]);
+	    _statusline(status_msg);
+	    FREE(status_msg);
+	} else {
+	    _statusline(CHOICE_LIST_MESSAGE);
+	}
+#if defined(USE_MOUSE) && (defined(NCURSES) || defined(PDCURSES))
+    } else {
+	_statusline(MOUSE_CHOICE_MESSAGE);
+#endif
+    }
+}
+
+#define SHOW_POPUP_STATUS() show_popup_status(cur_choice, choices, disabled, for_mouse)
+
 /*
  * This function offers the choices for values of an option via a popup window
  * which functions like that for selection of options in a form.  - FM
@@ -4162,7 +4228,6 @@ int LYhandlePopupList(int cur_choice,
     BOOLEAN ReDraw = FALSE;
     int number;
     char buffer[MAX_LINE];
-    const char *popup_status_msg = NULL;
     STRING2PTR Cptr = NULL;
 
 #define CAN_SCROLL_DOWN	1
@@ -4324,20 +4389,7 @@ int LYhandlePopupList(int cur_choice,
     width -= Lnum;
     bottom += top;
 
-    /*
-     * Clear the command line and write the popup statusline.  - FM
-     */
-    if (disabled) {
-	popup_status_msg = CHOICE_LIST_UNM_MSG;
-    } else if (!for_mouse) {
-	popup_status_msg = CHOICE_LIST_MESSAGE;
-#if defined(USE_MOUSE) && (defined(NCURSES) || defined(PDCURSES))
-    } else {
-	popup_status_msg =
-	    gettext("Left mouse button or return to select, arrow keys to scroll.");
-#endif
-    }
-    _statusline(popup_status_msg);
+    SHOW_POPUP_STATUS();
 
     /*
      * Set up the window_offset for choices.
@@ -4484,12 +4536,12 @@ int LYhandlePopupList(int cur_choice,
 		if (number <= 1) {
 		    if (window_offset == 0) {
 			HTUserMsg(ALREADY_AT_OPTION_BEGIN);
-			_statusline(popup_status_msg);
+			SHOW_POPUP_STATUS();
 			break;
 		    }
 		    window_offset = 0;
 		    cur_choice = 0;
-		    _statusline(popup_status_msg);
+		    SHOW_POPUP_STATUS();
 		    goto redraw;
 		}
 
@@ -4500,7 +4552,7 @@ int LYhandlePopupList(int cur_choice,
 		if (number >= npages) {
 		    if (window_offset >= ((num_choices - length) + 1)) {
 			HTUserMsg(ALREADY_AT_OPTION_END);
-			_statusline(popup_status_msg);
+			SHOW_POPUP_STATUS();
 			break;
 		    }
 		    window_offset = ((npages - 1) * length);
@@ -4509,7 +4561,7 @@ int LYhandlePopupList(int cur_choice,
 		    }
 		    if (cur_choice < window_offset)
 			cur_choice = window_offset;
-		    _statusline(popup_status_msg);
+		    SHOW_POPUP_STATUS();
 		    goto redraw;
 		}
 
@@ -4522,11 +4574,11 @@ int LYhandlePopupList(int cur_choice,
 		    HTSprintf0(&msg, ALREADY_AT_OPTION_PAGE, number);
 		    HTUserMsg(msg);
 		    FREE(msg);
-		    _statusline(popup_status_msg);
+		    SHOW_POPUP_STATUS();
 		    break;
 		}
 		cur_choice = window_offset = ((number - 1) * length);
-		_statusline(popup_status_msg);
+		SHOW_POPUP_STATUS();
 		goto redraw;
 
 	    }
@@ -4566,7 +4618,7 @@ int LYhandlePopupList(int cur_choice,
 			HTSprintf0(&msg, OPTION_ALREADY_CURRENT, (number + 1));
 			HTUserMsg(msg);
 			FREE(msg);
-			_statusline(popup_status_msg);
+			SHOW_POPUP_STATUS();
 			break;
 		    }
 
@@ -4587,7 +4639,7 @@ int LYhandlePopupList(int cur_choice,
 			    if (window_offset < 0)
 				window_offset = 0;
 			}
-			_statusline(popup_status_msg);
+			SHOW_POPUP_STATUS();
 			goto redraw;
 		    }
 
@@ -4601,7 +4653,7 @@ int LYhandlePopupList(int cur_choice,
 	    /*
 	     * Restore the popup statusline.  - FM
 	     */
-	    _statusline(popup_status_msg);
+	    SHOW_POPUP_STATUS();
 	    break;
 
 	case LYK_PREV_LINK:
@@ -5025,7 +5077,7 @@ int LYhandlePopupList(int cur_choice,
 	     * Restore the popup statusline and reset the search variables.  -
 	     * FM
 	     */
-	    _statusline(popup_status_msg);
+	    SHOW_POPUP_STATUS();
 	    BStrCopy0(prev_target, "");
 	    QueryTotal = (search_queries ? HTList_count(search_queries)
 			  : 0);
@@ -5056,7 +5108,7 @@ int LYhandlePopupList(int cur_choice,
  */
 int LYgetBString(bstring **inputline,
 		 int hidden,
-		 size_t max_cols,
+		 unsigned max_cols,
 		 RecallType recall)
 {
     int x, y;
@@ -5134,7 +5186,7 @@ int LYgetBString(bstring **inputline,
 	    LYFinishEdit(edit);
 	    result = ch;
 	    done = TRUE;
-	    break;
+	    continue;
 	}
 	ch |= InputMods;
 	InputMods = 0;
@@ -5210,8 +5262,8 @@ int LYgetBString(bstring **inputline,
 		LYLineEdit(edit, ch, FALSE);
 		break;
 	    }
-	    /* FALLTHRU */
 #endif
+	    /* FALLTHRU */
 	case LYE_ENTER:
 	    BStrCopy0(*inputline, Buffer);
 	    if (!hidden)
@@ -5223,7 +5275,7 @@ int LYgetBString(bstring **inputline,
 	    LYFinishEdit(edit);
 	    result = ch;
 	    done = TRUE;
-	    break;
+	    continue;
 
 #ifdef CAN_CUT_AND_PASTE
 	case LYE_PASTE:
@@ -5276,7 +5328,7 @@ int LYgetBString(bstring **inputline,
 	    LYFinishEdit(edit);
 	    BStrCopy0(*inputline, "");
 	    done = TRUE;
-	    break;
+	    continue;
 
 	case LYE_STOP:
 	    CTRACE((tfp, "LYgetstr LYE_STOP\n"));
@@ -5285,7 +5337,7 @@ int LYgetBString(bstring **inputline,
 	    LYFinishEdit(edit);
 	    BStrCopy0(*inputline, "");
 	    done = TRUE;
-	    break;
+	    continue;
 #else
 #ifdef ENHANCED_LINEEDIT
 	    disableEditMark();
@@ -5341,7 +5393,7 @@ int LYgetBString(bstring **inputline,
  */
 int LYgetstr(char *inputline,	/* fixed-size buffer for input/output */
 	     int hidden,	/* true to suppress from command-history */
-	     size_t bufsize,	/* sizeof(inputline) */
+	     unsigned bufsize,	/* sizeof(inputline) */
 	     RecallType recall)	/* type of command-history */
 {
     int ch;
@@ -5898,7 +5950,6 @@ char *SNACopy(char **target,
 	if (*target == NULL) {
 	    CTRACE((tfp, "Tried to malloc %lu bytes\n", (unsigned long) n));
 	    outofmem(__FILE__, "SNACopy");
-	    assert(*target != NULL);
 	}
 	LYStrNCpy(*target, source, n);
     }
@@ -5921,14 +5972,12 @@ char *SNACat(char **target,
 
 	    if (*target == NULL)
 		outofmem(__FILE__, "SNACat");
-	    assert(*target != NULL);
 	    LYStrNCpy(*target + length, source, n);
 	} else {
 	    *target = typeMallocn(char, n + 1);
 
 	    if (*target == NULL)
 		outofmem(__FILE__, "SNACat");
-	    assert(*target != NULL);
 	    MemCpy(*target, source, n);
 	    (*target)[n] = '\0';	/* terminate */
 	}
@@ -6068,7 +6117,7 @@ void LYOpenCmdLogfile(int argc,
 {
     int n;
 
-    if (lynx_cmd_logfile != 0) {
+    if (non_empty(lynx_cmd_logfile)) {
 	cmd_logfile = LYNewTxtFile(lynx_cmd_logfile);
 	if (cmd_logfile != 0) {
 	    fprintf(cmd_logfile, "# Command logfile created by %s %s (%s)\n",
@@ -6087,7 +6136,7 @@ BOOL LYHaveCmdScript(void)
 
 void LYOpenCmdScript(void)
 {
-    if (lynx_cmd_script != 0) {
+    if (non_empty(lynx_cmd_script)) {
 	cmd_script = fopen(lynx_cmd_script, TXT_R);
 	CTRACE((tfp, "LYOpenCmdScript(%s) %s\n",
 		lynx_cmd_script,
@@ -6152,7 +6201,7 @@ int LYReadCmdKey(int mode)
 	ch = LYgetch_for(mode);
     }
     CTRACE((tfp, "LYReadCmdKey(%d) ->%s (%#x)\n",
-	    mode, LYKeycodeToString(ch, TRUE), ch));
+	    mode, LYKeycodeToString(ch, TRUE), (unsigned) ch));
     LYWriteCmdKey(ch);
     return ch;
 }

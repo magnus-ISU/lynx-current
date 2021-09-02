@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTFile.c,v 1.142 2014/02/13 18:30:01 tom Exp $
+ * $LynxId: HTFile.c,v 1.152 2019/08/16 22:53:10 tom Exp $
  *
  *			File Access				HTFile.c
  *			===========
@@ -208,11 +208,12 @@ static char *FormatSize(char **bufp,
     char fmt[512];
 
     if (*start) {
-	sprintf(fmt, "%%%.*s" PRI_off_t, (int) sizeof(fmt) - 3, start);
+	sprintf(fmt, "%%%.*s" PRI_off_t,
+		  (int) sizeof(fmt) - DigitsOf(start) - 3, start);
 
 	HTSprintf0(bufp, fmt, entry);
     } else {
-	sprintf(fmt, "%" PRI_off_t, entry);
+	sprintf(fmt, "%" PRI_off_t, CAST_off_t (entry));
 
 	StrAllocCopy(*bufp, fmt);
     }
@@ -555,8 +556,6 @@ void HTSetSuffix5(const char *suffix,
 	    suff = typecalloc(HTSuffix);
 	    if (suff == NULL)
 		outofmem(__FILE__, "HTSetSuffix");
-
-	    assert(suff != NULL);
 
 	    if (!HTSuffixes) {
 		HTSuffixes = HTList_new();
@@ -905,7 +904,7 @@ HTFormat HTFileFormat(const char *filename,
 	HTFormat result;
 
 	StrAllocCopy(newname, filename);
-	*(FindSearch(newname)) = '\0';
+	newname[((const char *) search) - filename] = '\0';
 	result = HTFileFormat(newname, pencoding, pdesc);
 	free(newname);
 	return result;
@@ -998,14 +997,17 @@ HTFormat HTCharsetFormat(HTFormat format,
     char *cp = NULL, *cp1, *cp2, *cp3 = NULL, *cp4;
     BOOL chartrans_ok = FALSE;
     int chndl = -1;
+    const char *format_name = format->name;
 
     FREE(anchor->charset);
-    StrAllocCopy(cp, format->name);
+    if (format_name == 0)
+	format_name = "";
+    StrAllocCopy(cp, format_name);
     LYLowerCase(cp);
     if (((cp1 = StrChr(cp, ';')) != NULL) &&
 	(cp2 = strstr(cp1, "charset")) != NULL) {
 	CTRACE((tfp, "HTCharsetFormat: Extended MIME Content-Type is %s\n",
-		format->name));
+		format_name));
 	cp2 += 7;
 	while (*cp2 == ' ' || *cp2 == '=')
 	    cp2++;
@@ -1424,7 +1426,7 @@ CompressFileType HTContentToCompressType(HTParentAnchor *anchor)
     const char *ct = HTAnchor_content_type(anchor);
     const char *ce = HTAnchor_content_encoding(anchor);
 
-    if (ce == NULL && ct != 0) {
+    if (ct != 0) {
 	method = HTContentTypeToCompressType(ct);
     } else if (ce != 0) {
 	method = HTEncodingToCompressType(ce);
@@ -1513,14 +1515,15 @@ HTStream *HTFileSaveStream(HTParentAnchor *anchor)
 /*	Output one directory entry.
  *	---------------------------
  */
-void HTDirEntry(HTStructured * target, const char *tail,
-		const char *entry)
+void HTDirEntry(HTStructured * target, const char *tail, const char *entry)
 {
     char *relative = NULL;
     char *stripped = NULL;
     char *escaped = NULL;
     int len;
 
+    if (entry == NULL)
+	entry = "";
     StrAllocCopy(escaped, entry);
     LYTrimPathSep(escaped);
     if (strcmp(escaped, "..") != 0) {
@@ -1584,7 +1587,8 @@ void HTStructured_doctype(HTStructured * target, HTFormat format_out)
 void HTStructured_meta(HTStructured * target, HTFormat format_out)
 {
     if (view_structured(format_out))
-	PUTS("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">\n");
+	PUTS("<meta http-equiv=\"Content-Type\" content=\"" STR_HTML
+	     "; charset=iso-8859-1\">\n");
 }
 /*	Output parent directory entry.
  *	------------------------------
@@ -2135,7 +2139,7 @@ static int print_local_dir(DIR *dp, char *localname,
 	     * Append the current entry's filename to the path.
 	     */
 	    StrAllocCat(tmpfilename, entry->file_name);
-	    HTSimplify(tmpfilename);
+	    HTSimplify(tmpfilename, LYIsPathSep(*tmpfilename));
 	    /*
 	     * Output the directory entry.
 	     */
@@ -2505,7 +2509,7 @@ static int decompressAndParse(HTParentAnchor *anchor,
 		    gzfp = gzopen(localname, BIN_R);
 
 		    CTRACE((tfp, "HTLoadFile: gzopen of `%s' gives %p\n",
-			    localname, gzfp));
+			    localname, (void *) gzfp));
 		}
 		internal_decompress = cftGzip;
 	    } else if (isDOWNLOAD(cftDeflate)) {
@@ -2584,7 +2588,7 @@ static int decompressAndParse(HTParentAnchor *anchor,
 			gzfp = gzopen(localname, BIN_R);
 
 			CTRACE((tfp, "HTLoadFile: gzopen of `%s' gives %p\n",
-				localname, gzfp));
+				localname, (void *) gzfp));
 		    }
 		    internal_decompress = cftGzip;
 		}

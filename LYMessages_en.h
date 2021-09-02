@@ -1,9 +1,9 @@
 /*
- * $LynxId: LYMessages_en.h,v 1.74 2013/10/19 13:02:24 tom Exp $
+ * $LynxId: LYMessages_en.h,v 1.82 2019/08/24 00:37:02 tom Exp $
  *
  * Lynx - Hypertext navigation system
  *
- *   Copyright 1997-2013 Thomas E. Dickey
+ *   Copyright 1997-2019 Thomas E. Dickey
  *   Copyright 1992, 1993, 1994 University of Kansas
  *   Released 1995 using GNU General Public License
  */
@@ -53,10 +53,16 @@
 /* Forms messages */
 #ifdef TEXTFIELDS_MAY_NEED_ACTIVATION
 /* Inactive input fields, messages used with -tna option - kw */
+#define FORM_LINK_TEXT_ADV_MSG_INA \
+ gettext("(Textfield \"%s\") Inactive.  Press <return> to activate.")
 #define FORM_LINK_TEXT_MESSAGE_INA \
  gettext("(Text entry field) Inactive.  Press <return> to activate.")
+#define FORM_LINK_TEXTAREA_ADV_MSG_INA \
+ gettext("(Textarea \"%s\") Inactive.  Press <return> to activate.")
 #define FORM_LINK_TEXTAREA_MESSAGE_INA \
  gettext("(Textarea) Inactive.  Press <return> to activate.")
+#define FORM_LINK_TEXTAREA_ADV_MSG_INA_E \
+ gettext("(Textarea \"%s\") Inactive.  Press <return> to activate (%s for editor).")
 #define FORM_LINK_TEXTAREA_MESSAGE_INA_E \
  gettext("(Textarea) Inactive.  Press <return> to activate (%s for editor).")
 #define FORM_LINK_TEXT_SUBMIT_MESSAGE_INA \
@@ -74,10 +80,16 @@
  gettext("UNMODIFIABLE file entry field.  Use UP or DOWN arrows or tab to move off.")
 #define FORM_LINK_FILE_MESSAGE \
  gettext("(File entry field) Enter filename.  Use UP or DOWN arrows or tab to move off.")
+#define FORM_LINK_TEXT_ADV_MSG \
+ gettext("(Textfield \"%s\") Enter text.  Use UP or DOWN arrows or tab to move off.")
 #define FORM_LINK_TEXT_MESSAGE \
- gettext("(Text entry field) Enter text.  Use UP or DOWN arrows or tab to move off.")
+ gettext("(Textfield \"%s\") Enter text.  Use UP or DOWN arrows or tab to move off.")
+#define FORM_LINK_TEXTAREA_ADV_MSG \
+ gettext("(Textarea \"%s\") Enter text. Use UP/DOWN arrows or TAB to move off.")
 #define FORM_LINK_TEXTAREA_MESSAGE \
  gettext("(Textarea) Enter text. Use UP/DOWN arrows or TAB to move off.")
+#define FORM_LINK_TEXTAREA_ADV_MSG_E \
+ gettext("(Textarea \"%s\") Enter text. Use UP/DOWN arrows or TAB to move off (%s for editor).")
 #define FORM_LINK_TEXTAREA_MESSAGE_E \
  gettext("(Textarea) Enter text. Use UP/DOWN arrows or TAB to move off (%s for editor).")
 #define FORM_LINK_TEXT_UNM_MSG \
@@ -98,10 +110,14 @@
  gettext("(Password entry field) Enter text.  Use UP or DOWN arrows or tab to move off.")
 #define FORM_LINK_PASSWORD_UNM_MSG \
  gettext("UNMODIFIABLE form password.  Use UP or DOWN arrows or tab to move off.")
+#define FORM_LINK_CHECKBOX_ADV_MSG \
+ gettext("(Checkbox \"%s\")   Use right-arrow or <return> to toggle.")
 #define FORM_LINK_CHECKBOX_MESSAGE \
  gettext("(Checkbox Field)   Use right-arrow or <return> to toggle.")
 #define FORM_LINK_CHECKBOX_UNM_MSG \
  gettext("UNMODIFIABLE form checkbox.  Use UP or DOWN arrows or tab to move off.")
+#define FORM_LINK_RADIO_ADV_MSG \
+ gettext("(Radio Button \"%s\")   Use right-arrow or <return> to toggle.")
 #define FORM_LINK_RADIO_MESSAGE \
  gettext("(Radio Button)   Use right-arrow or <return> to toggle.")
 #define FORM_LINK_RADIO_UNM_MSG \
@@ -128,12 +144,20 @@
  gettext("DISABLED form reset button.  Use UP or DOWN arrows or tab to move off.")
 #define FORM_LINK_BUTTON_MESSAGE \
  gettext("(Script button)   Use UP or DOWN arrows or tab to move off.")
+#define FORM_LINK_BUTTON_ADV_MSG \
+ gettext("(Script button \"%s\")   Use UP or DOWN arrows or tab to move off.")
 #define FORM_LINK_BUTTON_DIS_MSG \
  gettext("DISABLED Script button.  Use UP or DOWN arrows or tab to move off.")
+#define FORM_LINK_OPTION_LIST_ADV_MSG \
+ gettext("(Option list \"%s\") Hit return to select option.")
 #define FORM_LINK_OPTION_LIST_MESSAGE \
  gettext("(Option list) Hit return and use arrow keys and return to select option.")
+#define CHOICE_LIST_ADV_MSG \
+ gettext("(Choice entry \"%s\") Use arrow keys and return to select option.")
 #define CHOICE_LIST_MESSAGE \
  gettext("(Choice list) Hit return and use arrow keys and return to select option.")
+#define MOUSE_CHOICE_MESSAGE \
+ gettext("Left mouse button or return to select, arrow keys to scroll.")
 #define FORM_LINK_OPTION_LIST_UNM_MSG \
  gettext("UNMODIFIABLE option list.  Use return or arrow keys to review or leave.")
 #define CHOICE_LIST_UNM_MSG \
@@ -607,7 +631,7 @@
 #define ERROR_UNCOMPRESSING_TEMP gettext("Error uncompressing temporary file!")
 #define UNSUPPORTED_URL_SCHEME gettext("Unsupported URL scheme!")
 #define UNSUPPORTED_DATA_URL gettext("Unsupported data: URL!  Use SHOWINFO, for now.")
-#define TOO_MANY_REDIRECTIONS gettext("Redirection limit of 10 URL's reached.")
+#define TOO_MANY_REDIRECTIONS gettext("Redirection limit of %d URL's reached.")
 #define ILLEGAL_REDIRECTION_URL gettext("Illegal redirection URL received from server!")
 #define	SERVER_ASKED_FOR_REDIRECTION \
  gettext("Server asked for %d redirection of POST content to")
@@ -665,7 +689,6 @@
 #define MEMORY_EXHAUSTED_ABORTING gettext("Memory exhausted!  Aborting...")
 #define NOT_ENOUGH_MEMORY gettext("Not enough memory!")
 #define DFM_NOT_AVAILABLE gettext("Directory/File Manager not available")
-#define BASE_NOT_ABSOLUTE gettext("HREF in BASE tag is not an absolute URL.")
 #define LOCATION_NOT_ABSOLUTE gettext("Location URL is not absolute.")
 #define REFRESH_URL_NOT_ABSOLUTE gettext("Refresh URL is not absolute.")
 #define SENDING_MESSAGE_WITH_BODY_TO \

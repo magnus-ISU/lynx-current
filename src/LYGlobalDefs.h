@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYGlobalDefs.h,v 1.138 2014/02/04 01:25:39 tom Exp $
+ * $LynxId: LYGlobalDefs.h,v 1.153 2020/02/23 23:10:16 Keith.Bowes Exp $
  *
  * global variable definitions
  */
@@ -141,6 +141,8 @@ extern "C" {
 #define fields_are_numbered() \
 	    (keypad_mode == FIELDS_ARE_NUMBERED || \
 	     keypad_mode == LINKS_AND_FIELDS_ARE_NUMBERED)
+#define fields_are_named() \
+	    (user_mode == ADVANCED_MODE)
 
 #define HIDDENLINKS_MERGE	0
 #define HIDDENLINKS_SEPARATE	1
@@ -223,6 +225,7 @@ extern "C" {
     extern BOOLEAN LYinternal_flag;	/* don't need fresh copy, was internal link */
     extern BOOLEAN LYoverride_no_cache;		/* don't need fresh copy, from history */
     extern BOOLEAN LYresubmit_posts;
+    extern BOOLEAN LYtrimBlankLines;
     extern BOOLEAN LYtrimInputFields;
     extern BOOLEAN LYxhtml_parsing;
     extern BOOLEAN bold_H1;
@@ -231,6 +234,7 @@ extern "C" {
     extern BOOLEAN LYcase_sensitive;	/* TRUE to turn on case sensitive search */
     extern BOOLEAN check_mail;	/* TRUE to report unread/new mail messages */
     extern BOOLEAN child_lynx;	/* TRUE to exit with an arrow */
+    extern BOOLEAN dump_links_decoded;
     extern BOOLEAN dump_links_inline;
     extern BOOLEAN dump_links_only;
     extern BOOLEAN dump_output_immediately;
@@ -297,6 +301,8 @@ extern "C" {
 
     extern int LYAcceptEncoding;
     extern int LYAcceptMedia;
+    extern int LYContentType;
+    extern const char *ContentTypes[];
     extern int LYTransferRate;	/* see enum TransferRate */
     extern int display_lines;	/* number of lines in the display */
     extern int dump_output_width;
@@ -392,12 +398,14 @@ extern "C" {
     extern char *personal_extension_map;
     extern char *LYHostName;
     extern char *LYLocalDomain;
+    extern BOOLEAN LYGuessScheme;
     extern BOOLEAN unique_urls;
     extern BOOLEAN use_underscore;
     extern BOOLEAN no_list;
     extern BOOLEAN no_margins;
     extern BOOLEAN no_pause;
     extern BOOLEAN no_title;
+    extern BOOLEAN update_term_title;
     extern BOOLEAN historical_comments;
     extern BOOLEAN html5_charsets;
     extern BOOLEAN minimal_comments;
@@ -435,6 +443,7 @@ extern "C" {
     extern BOOLEAN debug_display_partial;	/* show with MessageSecs delay */
     extern BOOLEAN display_partial_flag;	/* permanent flag, not mutable */
 #endif
+    extern char *socks5_proxy;
     extern char *form_post_data;	/* User data for post form */
     extern char *form_get_data;	/* User data for get form */
     extern char *http_error_file;	/* Place HTTP status code in this file */
@@ -536,6 +545,15 @@ extern "C" {
     extern int LYHiddenLinks;
 
     extern char *SSL_cert_file;	/* Default CA CERT file */
+    extern char *SSL_client_cert_file;	/* Default client CERT file */
+    extern char *SSL_client_key_file;	/* Default client key file */
+
+    typedef enum {
+	HTTP_1_0
+	,HTTP_1_1
+    } HTTP_LEVEL;
+
+    extern int HTprotocolLevel;
 
     extern int Old_DTD;
 
@@ -570,13 +588,23 @@ extern "C" {
 	,FORCE_PROMPT_NO	/* assume "no" where a prompt would be used */
     } FORCE_PROMPT;
 
+    extern int cookie_version;
+
+    typedef enum {
+	COOKIES_RFC_2109
+	,COOKIES_RFC_2965
+	,COOKIES_RFC_6265
+    } COOKIES_VERSION;
+
+#define USE_RFC_2109 (cookie_version == (COOKIES_RFC_2109))
+#define USE_RFC_2965 (cookie_version == (COOKIES_RFC_2965))
+#define USE_RFC_6265 (cookie_version == (COOKIES_RFC_6265))
+
 #ifdef USE_SSL
     extern int ssl_noprompt;
 #endif
 
-#ifdef MISC_EXP
     extern int LYNoZapKey;	/* 0: off (do 'z' checking), 1: full, 2: initially */
-#endif
 
 #ifdef USE_JUSTIFY_ELTS
     extern BOOLEAN ok_justify;
@@ -655,7 +683,6 @@ extern "C" {
     extern BOOLEAN system_is_NT;
     extern char windows_drive[4];
     extern int lynx_timeout;
-    extern CRITICAL_SECTION critSec_DNS;
     extern CRITICAL_SECTION critSec_READ;
 #endif				/* _WINDOWS */
 
@@ -704,8 +731,6 @@ extern "C" {
 #ifdef USE_BLINK
     extern BOOLEAN term_blink_is_boldbg;
 #endif
-
-extern int LYOutputFileNameMode;
 
 #ifdef __cplusplus
 }

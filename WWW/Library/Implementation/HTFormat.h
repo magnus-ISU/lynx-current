@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTFormat.h,v 1.33 2010/10/27 00:13:53 tom Exp $
+ * $LynxId: HTFormat.h,v 1.37 2020/01/21 22:02:59 tom Exp $
  *
  *                                            HTFormat: The format manager in the WWW Library
  *                          MANAGE DIFFERENT DOCUMENT FORMATS
@@ -108,12 +108,17 @@ extern "C" {
    versions (pre 2.11).
 
  */
-#define WWW_PLAINTEXT   HTAtom_for("text/plain")
+#define STR_BINARY      "application/octet-stream"
+#define STR_PLAINTEXT   "text/plain"
+#define STR_HTML        "text/html"
+
+#define WWW_BINARY      HTAtom_for(STR_BINARY)
+#define WWW_PLAINTEXT   HTAtom_for(STR_PLAINTEXT)
+#define WWW_HTML        HTAtom_for(STR_HTML)
+
 #define WWW_POSTSCRIPT  HTAtom_for("application/postscript")
 #define WWW_RICHTEXT    HTAtom_for("application/rtf")
 #define WWW_AUDIO       HTAtom_for("audio/basic")
-#define WWW_HTML        HTAtom_for("text/html")
-#define WWW_BINARY      HTAtom_for("application/octet-stream")
 
     typedef HTAtom *HTEncoding;
 
@@ -188,6 +193,15 @@ The HTPresentation and HTConverter types
     extern HTPresentation *default_presentation;
 
 /*
+ * Options used for "Content-Type" string
+ */
+    typedef enum {
+	contentBINARY = 0
+	,contentTEXT
+	,contentHTML
+    } ContentType;
+
+/*
  * Options used for "Accept:" string
  */
     typedef enum {
@@ -255,7 +269,7 @@ HTSetPresentation: Register a system command to present a format
 
 /*
 
-HTSetConversion:   Register a converstion routine
+HTSetConversion:   Register a conversion routine
 
   ON ENTRY,
 
@@ -318,7 +332,7 @@ HTStackValue: Find the cost of a filter stack
 
   ON ENTRY,
 
-  format_in               The fomat of the data to be converted
+  format_in               The format of the data to be converted
 
   format_out              The format required
 

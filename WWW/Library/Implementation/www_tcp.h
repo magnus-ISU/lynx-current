@@ -1,5 +1,5 @@
 /*                System dependencies in the W3 library
- * $LynxId: www_tcp.h,v 1.54 2013/07/20 14:08:29 tom Exp $
+ * $LynxId: www_tcp.h,v 1.61 2018/12/26 12:30:14 tom Exp $
  *
                                    SYSTEM DEPENDENCIES
 
@@ -313,7 +313,14 @@ extern int ws_netread(int fd, char *buf, int len);
 
 #define INCLUDES_DONE
 #define TCP_INCLUDES_DONE
-#endif /* WINDOWS */
+
+#define LYNX_FD	SOCKET		/* WINSOCK uses an unsigned value for FD_SET, etc */
+
+#else
+
+#define LYNX_FD	int		/* POSIX says FD_SET descriptor is int */
+
+#endif				/* WINDOWS */
 
 /*
 
@@ -343,7 +350,7 @@ VAX/VMS
 #ifdef UCX
 #undef IOCTL
 #define IOCTL(s,cmd,arg)	HTioctl(s,cmd,arg)
-#endif /* UCX */
+#endif				/* UCX */
 
 #ifdef WIN_TCP
 #undef SOCKET_READ
@@ -355,7 +362,7 @@ VAX/VMS
 #undef IOCTL
 #define IOCTL(a,b,c) -1		/* disables ioctl function            */
 #define NO_IOCTL		/* flag to check if ioctl is disabled */
-#endif /* WIN_TCP */
+#endif				/* WIN_TCP */
 
 #ifdef CMU_TCP
 #undef SOCKET_READ
@@ -366,7 +373,7 @@ VAX/VMS
 #define NETREAD(s,b,l)     (cmu_get_sdc((s)) != 0 ? HTDoRead((s),(b),(l)) : read((s),(b),(l)))
 #define NETWRITE(s,b,l)    (cmu_get_sdc((s)) != 0 ? cmu_write((s),(b),(l)) : write((s),(b),(l)))
 #define NETCLOSE(s)        (cmu_get_sdc((s)) != 0 ? cmu_close((s)) : close((s)))
-#endif /* CMU_TCP */
+#endif				/* CMU_TCP */
 
 #ifdef MULTINET
 #undef NETCLOSE
@@ -970,12 +977,19 @@ typedef TYPE_FD_SET fd_set;
 #endif
 #endif /* HAVE_GETADDRINFO && ENABLE_IPV6 */
 
+typedef union {
+    struct sockaddr_in soc_in;
+    struct sockaddr soc_address;
+#ifdef INET6
+    struct sockaddr_storage soc_storage;
+#endif
+} LY_SOCKADDR;
+
 #ifdef INET6
 typedef struct sockaddr_storage SockA;
 
-#ifdef SIN6_LEN
-#define SOCKADDR_LEN(soc_address) (((struct sockaddr *)&soc_address)->sa_len)
-#else
+#define SOCKADDR_OF(param) (&((param).soc_address))
+
 #ifndef SA_LEN
 #define SA_LEN(x) (((x)->sa_family == AF_INET6) \
 		   ? sizeof(struct sockaddr_in6) \
@@ -983,12 +997,17 @@ typedef struct sockaddr_storage SockA;
 		      ? sizeof(struct sockaddr_in) \
 		      : sizeof(struct sockaddr)))	/* AF_UNSPEC? */
 #endif
-#define SOCKADDR_LEN(soc_address) (socklen_t) (SA_LEN((struct sockaddr *)&soc_address))
+
+#ifdef SIN6_LEN
+#define SOCKADDR_LEN(param) (SOCKADDR_OF(param)->sa_len)
+#else
+#define SOCKADDR_LEN(param) (socklen_t) SA_LEN(SOCKADDR_OF(param))
 #endif /* SIN6_LEN */
 #else
 typedef struct sockaddr_in SockA;
 
-#define SOCKADDR_LEN(soc_address) sizeof(soc_address)
+#define SOCKADDR_OF(param) ((struct sockaddr *)&(param))
+#define SOCKADDR_LEN(param) sizeof(param)
 #endif /* INET6 */
 
 #ifndef MAXHOSTNAMELEN

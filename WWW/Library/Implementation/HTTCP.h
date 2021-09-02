@@ -1,8 +1,10 @@
-/*                               /Net/dxcern/userd/timbl/hypertext/WWW/Library/src/HTTCP.html
-                               GENERIC TCP/IP COMMUNICATION
-
-   This module has the common code for handling TCP/IP connections etc.
-
+/*
+ * $LynxId: HTTCP.h,v 1.27 2018/05/16 19:48:16 tom Exp $
+ *
+ *                               /Net/dxcern/userd/timbl/hypertext/WWW/Library/src/HTTCP.html
+ *                             GENERIC TCP/IP COMMUNICATION
+ *
+ * This module has the common code for handling TCP/IP connections etc.
  */
 #ifndef HTTCP_H
 #define HTTCP_H
@@ -21,12 +23,7 @@ extern "C" {
  *           returns a pointer to a static string which must be copied if
  *                it is to be kept.
  */
-#ifdef INET6
-    extern const char *HTInetString(SockA * mysin);
-
-#else
-    extern const char *HTInetString(struct sockaddr_in *mysin);
-#endif				/* INET6 */
+    extern const char *HTInetString(LY_SOCKADDR * mysin);
 
 /*      Encode INET status (as in sys/errno.h)                    inet_status()
  *      ------------------
@@ -86,7 +83,11 @@ extern "C" {
  */
     extern int lynx_nsl_status;
 
-    extern struct hostent *LYGetHostByName(char *str);
+    extern BOOLEAN LYCheckHostByName(char *host);
+
+#ifdef INET6
+    extern BOOLEAN HTCheckAddrInfo(const char *str, const int defport);
+#endif
 
 /*      Get Name of This Machine
  *      ------------------------

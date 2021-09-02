@@ -11,7 +11,7 @@
  *	Purpose:	Provide an atexit function for libraries without such.
  *	Remarks/Portability/Dependencies/Restrictions:
  *		Include this header in every file that you have an exit or
- *			atexit statment.
+ *			atexit statement.
  *	Revision History:
  *		06-15-94	created Lynx 2-3-1 Garrett Arch Blythe
  */
@@ -55,10 +55,10 @@ extern "C" {
 /*
  * Function declarations
  */
-    extern void outofmem(const char *fname, const char *func) GCC_NORETURN;
+    extern GCC_NORETURN void outofmem(const char *fname, const char *func);
     extern void reset_signals(void);
-    extern void exit_immediately(int status) GCC_NORETURN;
-    extern void LYexit(int status) GCC_NORETURN;
+    extern GCC_NORETURN void exit_immediately(int status);
+    extern GCC_NORETURN void LYexit(int status);
     extern int LYatexit(void (*function) (void));
 
 #ifdef __cplusplus

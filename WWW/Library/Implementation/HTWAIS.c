@@ -1,7 +1,7 @@
 /*
- * $LynxId: HTWAIS.c,v 1.38 2013/11/28 11:16:03 tom Exp $
+ * $LynxId: HTWAIS.c,v 1.40 2020/01/21 22:22:15 tom Exp $
  *
- *	WorldWideWeb - Wide Area Informaion Server Access	HTWAIS.c
+ *	WorldWideWeb - Wide Area Information Server Access	HTWAIS.c
  *	==================================================
  *
  *	This module allows a WWW server or client to read data from a
@@ -915,10 +915,10 @@ int HTLoadWAIS(const char *arg,
 
 	format_in =
 	    !strcmp(doctype, "WSRC") ? HTAtom_for("application/x-wais-source") :
-	    !strcmp(doctype, "TEXT") ? HTAtom_for("text/plain") :
-	    !strcmp(doctype, "HTML") ? HTAtom_for("text/html") :
+	    !strcmp(doctype, "TEXT") ? HTAtom_for(STR_PLAINTEXT) :
+	    !strcmp(doctype, "HTML") ? HTAtom_for(STR_HTML) :
 	    !strcmp(doctype, "GIF") ? HTAtom_for("image/gif") :
-	    HTAtom_for("application/octet-stream");
+	    HTAtom_for(STR_BINARY);
 	binary =
 	    0 != strcmp(doctype, "WSRC") &&
 	    0 != strcmp(doctype, "TEXT") &&
@@ -929,7 +929,7 @@ int HTLoadWAIS(const char *arg,
 	    return HTLoadError(sink, 500,
 			       gettext("Can't convert format of WAIS document"));
 	/*
-	 * Decode hex or litteral format for document ID.
+	 * Decode hex or literal format for document ID.
 	 */
 	WAIS_from_WWW(docid, docname);
 

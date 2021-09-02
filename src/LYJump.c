@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYJump.c,v 1.50 2014/01/19 11:43:21 tom Exp $
+ * $LynxId: LYJump.c,v 1.52 2018/03/18 19:17:00 tom Exp $
  */
 #include <HTUtils.h>
 #include <HTAlert.h>
@@ -89,8 +89,6 @@ BOOL LYJumpInit(char *config)
 	outofmem(__FILE__, "LYJumpInit");
     }
 
-    assert(jtp != NULL);
-
     /*
      * config is JUMPFILE:path[:optional_key[:optional_prompt]]
      *
@@ -145,15 +143,13 @@ BOOL LYJumpInit(char *config)
     if (cp && !JThead) {
 	JThead = jtp;
 	StrAllocCopy(JThead->msg, jumpprompt);
-	if (!jumpfile)
+	if (isEmpty(jumpfile))
 	    StrAllocCopy(jumpfile, JThead->file);
 	jtp = typecalloc(struct JumpTable);
 
 	if (jtp == NULL) {
 	    outofmem(__FILE__, "LYJumpInit");
 	}
-
-	assert(jtp != NULL);
 
 	StrAllocCopy(jtp->file, JThead->file);
     }

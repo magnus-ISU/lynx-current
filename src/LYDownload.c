@@ -1,4 +1,4 @@
-/* $LynxId: LYDownload.c,v 1.69 2013/10/13 20:23:07 tom Exp $ */
+/* $LynxId: LYDownload.c,v 1.72 2021/07/29 20:30:00 tom Exp $ */
 #include <HTUtils.h>
 #include <HTParse.h>
 #include <HTList.h>
@@ -57,12 +57,13 @@ void LYDownload(char *line)
     /*
      * Make a copy of the LYNXDOWNLOAD internal URL for parsing.  - FM
      */
-    StrAllocCopy(Line, line);
+    if (StrAllocCopy(Line, line) == 0)
+	goto failed;
 
     /*
      * Parse out the File, sug_file, and the Method.
      */
-    if ((file = strstr(Line, "/File=")) == NULL)
+    if ((file = LYstrstr(Line, "/File=")) == NULL)
 	goto failed;
     *file = '\0';
     /*
@@ -70,7 +71,7 @@ void LYDownload(char *line)
      */
     file += 6;
 
-    if ((sug_file = strstr(file + 1, "/SugFile=")) != NULL) {
+    if ((sug_file = LYstrstr(file + 1, "/SugFile=")) != NULL) {
 	*sug_file = '\0';
 	/*
 	 * Go past "SugFile=".
@@ -112,7 +113,7 @@ void LYDownload(char *line)
 #endif /* _WINDOWS */
 #endif /* DIRED_SUPPORT */
 
-    if ((method = strstr(Line, "Method=")) == NULL)
+    if ((method = LYstrstr(Line, "Method=")) == NULL)
 	goto failed;
     /*
      * Go past "Method=".
@@ -455,6 +456,7 @@ void LYDownload(char *line)
   cleanup:
     FREE(Line);
     BStrFree(buffer);
+    BStrFree(command);
     return;
 }
 

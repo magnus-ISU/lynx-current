@@ -1,5 +1,5 @@
 /*
- * $LynxId: config.hin,v 1.136 2014/03/09 14:08:59 tom Exp $
+ * $LynxId: config.hin,v 1.151 2021/07/05 13:25:57 tom Exp $
  * vile:cmode
  *
  * The configure script translates "config.hin" into "lynx_cfg.h"
@@ -7,13 +7,15 @@
 #ifndef LYNX_CFG_H
 #define LYNX_CFG_H 1
 
+#undef HOMEPAGE_URL
+
 #undef ALL_CHARSETS		/* AC_ARG_WITH(charsets) */
 #undef ALT_CHAR_SET		/* CF_ALT_CHAR_SET */
 #undef ARCHIVE_ONLY		/* CF_ARG_DISABLE(dired-archive) */
 #undef BZIP2_PATH		/* CF_PATH_PROG(bzip2) */
 #undef CAN_SET_ERRNO		/* CF_SET_ERRNO */
 #undef CHMOD_PATH		/* CF_PATH_PROG(chmod) */
-#undef CJK_EX			/* CF_ARG_ENABLE(cjk) */
+#undef CJK_EX			/* CF_ARG_DISABLE(cjk) */
 #undef COLOR_CURSES		/* CF_COLOR_CURSES */
 #undef COMPRESS_PATH		/* CF_PATH_PROG(compress) */
 #undef COPY_PATH		/* CF_PATH_PROG(cp) */
@@ -39,9 +41,10 @@
 #undef EXEC_LINKS		/* CF_ARG_ENABLE(exec-links) */
 #undef EXEC_SCRIPTS		/* CF_ARG_ENABLE(exec-scripts) */
 #undef EXP_CHARTRANS_AUTOSWITCH	/* CF_ARG_ENABLE(font-switch) */
-#undef EXP_JAPANESEUTF8_SUPPORT	/* CF_ARG_ENABLE(japanese-utf8) */
+#undef EXP_CHINESEUTF8_SUPPORT	/* CF_ARG_ENABLE(chinese-utf8) */
 #undef EXP_KEYBOARD_LAYOUT	/* CF_ARG_ENABLE(kbd-layout) */
 #undef EXP_NESTED_TABLES	/* CF_ARG_ENABLE(nested-tables) */
+#undef EXP_WCWIDTH_SUPPORT	/* CF_ARG_ENABLE(wcwidth-support) */
 #undef FANCY_CURSES		/* CF_FANCY_CURSES */
 #undef GCC_NORETURN		/* CF_GCC_ATTRIBUTES */
 #undef GCC_PRINTF		/* CF_GCC_ATTRIBUTES */
@@ -61,6 +64,7 @@
 #undef HAVE_CBREAK
 #undef HAVE_CTERMID
 #undef HAVE_CURSESX_H
+#undef HAVE_CURSES_EXIT		/* ncurses debugging extension */
 #undef HAVE_CURSES_VERSION	/* CF_FUNC_CURSES_VERSION */
 #undef HAVE_CUSERID
 #undef HAVE_DCGETTEXT		/* AM_GNU_GETTEXT */
@@ -80,7 +84,8 @@
 #undef HAVE_GETTEXT		/* defined if you want to use non-GNU gettext */
 #undef HAVE_GETTIMEOFDAY
 #undef HAVE_GETUID
-#undef HAVE_GNUTLS_PRIORITY_SET_DIRECT
+#undef HAVE_GNUTLS_PROTOCOL_SET_PRIORITY
+#undef HAVE_GNUTLS_RND
 #undef HAVE_H_ERRNO
 #undef HAVE_ICONV		/* AM_ICONV */
 #undef HAVE_INET_ATON		/* CF_INET_ADDR */
@@ -102,6 +107,7 @@
 #undef HAVE_MBSTATE_T		/* CF_WIDEC_CURSES */
 #undef HAVE_MKDTEMP
 #undef HAVE_MKTEMP
+#undef HAVE_MKTIME		/* AC_REPLACE_FUNCS(mktime) */
 #undef HAVE_MMAP		/* AM_GNU_GETTEXT */
 #undef HAVE_MUNMAP		/* AM_GNU_GETTEXT */
 #undef HAVE_NAPMS
@@ -127,6 +133,7 @@
 #undef HAVE_SLEEP
 #undef HAVE_STDARG_H		/* CF_VARARGS */
 #undef HAVE_STDLIB_H
+#undef HAVE_STDNORETURN_H	/* CF_C11_NORETURN */
 #undef HAVE_STPCPY		/* AM_GNU_GETTEXT */
 #undef HAVE_STRCASECMP		/* AM_GNU_GETTEXT */
 #undef HAVE_STRCHR		/* AM_GNU_GETTEXT */
@@ -166,18 +173,19 @@
 #undef HAVE_UTMP_UT_XTIME	/* CF_UTMP_UT_XTIME */
 #undef HAVE_VALUES_H		/* AM_GNU_GETTEXT */
 #undef HAVE_VARARGS_H		/* CF_VARARGS */
-#undef HAVE_VASPRINTF
+#undef HAVE_VASPRINTF		/* CF_FUNC_VASPRINTF */
 #undef HAVE_VFORK_H		/* have <vfork.h> */
 #undef HAVE_WAIS_H
 #undef HAVE_WAITPID
 #undef HAVE_WATTR_GET
 #undef HAVE_WBORDER
+#undef HAVE_WCHAR_H
+#undef HAVE_WCWIDTH		/* AC_REPLACE_FUNCS(wcwidth) */
 #undef HAVE_WINDOWS_H		/* CF_NETLIBS */
 #undef HAVE_WINSOCK2_H		/* CF_NETLIBS */
 #undef HAVE_WINSOCK_H		/* CF_NETLIBS */
 #undef HAVE_WREDRAWLN
 #undef HAVE_WRESIZE
-#undef TRACK_INTERNAL_LINKS	/* CF_ARG_DISABLE(internal-links) */
 #undef HAVE_XCURSES		/* CF_PDCURSES_X11 */
 #undef HAVE_ZERROR
 #undef HAVE__NC_FREEALL		/* ncurses debugging extension */
@@ -230,11 +238,13 @@
 #undef SIZEOF_INT		/* AC_CHECK_SIZEOF(int) */
 #undef SIZEOF_LONG		/* AC_CHECK_SIZEOF(long) */
 #undef SIZEOF_OFF_T		/* AC_CHECK_SIZEOF(off_t) */
+#undef SIZEOF_SIZE_T		/* AC_CHECK_SIZEOF(size_t) */
 #undef SIZEOF_TIME_T		/* AC_CHECK_SIZEOF(time_t) */
 #undef SLsmg_Color_Type		/* CF_SLANG_UNIX_DEFS */
 #undef SLtt_Char_Type		/* CF_SLANG_UNIX_DEFS */
 #undef SOCKS			/* CF_SOCKS, CF_SOCKS5 */
 #undef STDC_HEADERS
+#undef STDC_NORETURN		/* CF_C11_NORETURN */
 #undef SYSTEM_MAIL		/* CF_DEFINE_PROG */
 #undef SYSTEM_MAIL_FLAGS	/* CF_SYSTEM_MAIL_FLAGS */
 #undef SYSTEM_NAME		/* CF_CHECK_CACHE */
@@ -249,6 +259,7 @@
 #undef TIME_WITH_SYS_TIME	/* AC_HEADER_TIME */
 #undef TN3270_PATH		/* CF_PATH_PROG(tn3270) */
 #undef TOUCH_PATH		/* CF_PATH_PROG(touch) */
+#undef TRACK_INTERNAL_LINKS	/* CF_ARG_DISABLE(internal-links) */
 #undef ULTRIX			/* config.sub */
 #undef UNCOMPRESS_PATH		/* CF_PATH_PROG(gunzip) */
 #undef UNDERLINE_LINKS		/* CF_ARG_ENABLE(underlines) */
@@ -268,7 +279,9 @@
 #undef USE_FILE_UPLOAD		/* CF_ARG_DISABLE(file-upload) */
 #undef USE_GNUTLS_FUNCS		/* CF_GNUTLS */
 #undef USE_GNUTLS_INCL		/* CF_GNUTLS */
+#undef USE_IDN2			/* CF_ARG_DISABLE(idna) */
 #undef USE_IDNA			/* CF_ARG_DISABLE(idna) */
+#undef USE_JAPANESEUTF8_SUPPORT	/* CF_ARG_DISABLE(japanese-utf8) */
 #undef USE_JUSTIFY_ELTS		/* CF_ARG_DISABLE(justify-elts) */
 #undef USE_LOCALE_CHARSET	/* CF_ARG_DISABLE(locale-charset) */
 #undef USE_OPENSSL_INCL		/* CF_SSL */
@@ -346,12 +359,6 @@
  */
 #define HAVE_LYHELP_H 1
 
-/* FIXME:DGUX (done in $host_os case-statement) */
-/* FIXME:DGUX_OLD */
-/* FIXME:HP_TERMINAL */
-/* FIXME:REVERSE_CLEAR_SCREEN_PROBLEM */
-/* FIXME:SHORTENED_RBIND */
-/* FIXME:SNAKE */
 /* FIXME:SVR4_BSDSELECT (done in $host_os case-statement) */
 
 /* Some older socks libraries, especially AIX need special definitions */

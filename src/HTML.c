@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTML.c,v 1.164 2013/11/28 11:17:39 tom Exp $
+ * $LynxId: HTML.c,v 1.195 2021/07/23 20:23:54 tom Exp $
  *
  *		Structured stream to Rich hypertext converter
  *		============================================
@@ -11,7 +11,7 @@
  *
  *	Override this module if making a new GUI browser.
  *
- *   Being Overidden
+ *   Being Overridden
  *
  */
 
@@ -65,13 +65,6 @@
 #include <LYStyle.h>
 #undef SELECTED_STYLES
 #define pHText_changeStyle(X,Y,Z) {}
-
-#if OMIT_SCN_KEEPING
-# define HCODE_TO_STACK_OFF(x) /*(CSHASHSIZE+1)*/ 88888		/*special value. */
-#else
-# define HCODE_TO_STACK_OFF(x) x	/*pass computed value */
-#endif
-
 #endif /* USE_COLOR_STYLE */
 
 #ifdef USE_SOURCE_CACHE
@@ -505,6 +498,8 @@ void HTML_put_character(HTStructured * me, int c)
  */
 void HTML_put_string(HTStructured * me, const char *s)
 {
+    HTChunk *target = NULL;
+
 #ifdef USE_PRETTYSRC
     char *translated_string = NULL;
 #endif
@@ -525,15 +520,15 @@ void HTML_put_string(HTStructured * me, const char *s)
 	break;			/* Do Nothing */
 
     case HTML_TITLE:
-	HTChunkPuts(&me->title, s);
+	target = &me->title;
 	break;
 
     case HTML_STYLE:
-	HTChunkPuts(&me->style_block, s);
+	target = &me->style_block;
 	break;
 
     case HTML_SCRIPT:
-	HTChunkPuts(&me->script, s);
+	target = &me->script;
 	break;
 
     case HTML_PRE:		/* Formatted text */
@@ -547,20 +542,20 @@ void HTML_put_string(HTStructured * me, const char *s)
 	break;
 
     case HTML_OBJECT:
-	HTChunkPuts(&me->object, s);
+	target = &me->object;
 	break;
 
     case HTML_TEXTAREA:
-	HTChunkPuts(&me->textarea, s);
+	target = &me->textarea;
 	break;
 
     case HTML_SELECT:
     case HTML_OPTION:
-	HTChunkPuts(&me->option, s);
+	target = &me->option;
 	break;
 
     case HTML_MATH:
-	HTChunkPuts(&me->math, s);
+	target = &me->math;
 	break;
 
     default:			/* Free format text? */
@@ -651,6 +646,15 @@ void HTML_put_string(HTStructured * me, const char *s)
 	    }			/* for */
 	}
     }				/* end switch */
+
+    if (target != NULL) {
+	if (target->data == s) {
+	    CTRACE((tfp, "BUG: appending chunk to itself: `%.*s'\n",
+		    target->size, target->data));
+	} else {
+	    HTChunkPuts(target, s);
+	}
+    }
 #ifdef USE_PRETTYSRC
     if (psrc_convert_string) {
 	psrc_convert_string = FALSE;
@@ -762,7 +766,6 @@ static void addClassName(const char *prefix,
 	}
 	if (Style_className == NULL)
 	    outofmem(__FILE__, "addClassName");
-	assert(Style_className != NULL);
 	Style_className_end = Style_className + have;
     }
     if (offset)
@@ -777,49 +780,6 @@ static void addClassName(const char *prefix,
 #else
 #define addClassName(prefix, actual, length)	/* nothing */
 #endif
-
-#ifdef USE_PRETTYSRC
-
-static void HTMLSRC_apply_markup(HTStructured * context, HTlexeme lexeme, int start,
-				 int tag_charset)
-{
-    HT_tagspec *ts = *((start ? lexeme_start : lexeme_end) + lexeme);
-
-    while (ts) {
-#ifdef USE_COLOR_STYLE
-	if (ts->start) {
-	    current_tag_style = ts->style;
-	    force_current_tag_style = TRUE;
-	    forced_classname = ts->class_name;
-	    force_classname = TRUE;
-	}
-#endif
-	CTRACE((tfp, ts->start ? "SRCSTART %d\n" : "SRCSTOP %d\n", (int) lexeme));
-	if (ts->start)
-	    HTML_start_element(context,
-			       (int) ts->element,
-			       ts->present,
-			       (STRING2PTR) ts->value,
-			       tag_charset,
-			       NULL);
-	else
-	    HTML_end_element(context,
-			     (int) ts->element,
-			     NULL);
-	ts = ts->next;
-    }
-}
-
-#  define START TRUE
-#  define STOP FALSE
-
-#  define PSRCSTART(x)	HTMLSRC_apply_markup(me,HTL_##x,START,tag_charset)
-#  define PSRCSTOP(x)  HTMLSRC_apply_markup(me,HTL_##x,STOP,tag_charset)
-
-#  define PUTC(x) HTML_put_character(me,x)
-#  define PUTS(x) HTML_put_string(me,x)
-
-#endif /* USE_PRETTYSRC */
 
 static void LYStartArea(HTStructured * obj, const char *href,
 			const char *alt,
@@ -892,7 +852,7 @@ static void LYHandleFIG(HTStructured * me, const BOOL *present,
 	    if (*href) {
 		me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							 NULL,	/* Tag */
-							 href,	/* Addresss */
+							 href,	/* Address */
 							 INTERN_CHK(*intern_flag));	/* Type */
 		HText_beginAnchor(me->text, me->inUnderline, me->CurrentA);
 		if (me->inBoldH == FALSE)
@@ -986,108 +946,10 @@ static int HTML_start_element(HTStructured * me, int element_number,
     int status = HT_OK;
 
 #ifdef USE_COLOR_STYLE
-    char *class_name;
-    int class_used = 0;
+    const char *class_name;
+    const char *prefix_string;
+    BOOL class_used = FALSE;
 #endif
-
-#ifdef USE_PRETTYSRC
-    if (psrc_view && !sgml_in_psrc_was_initialized) {
-	if (!psrc_nested_call) {
-	    HTTag *tag = &HTML_dtd.tags[element_number];
-	    char buf[200];
-	    const char *p;
-
-	    if (psrc_first_tag) {
-		psrc_first_tag = FALSE;
-		/* perform the special actions on the begining of the document.
-		   It's assumed that all lynx modules start generating html
-		   from tag (ie not a text) so we are able to trap this moment
-		   and initialize.
-		 */
-		psrc_nested_call = TRUE;
-		HTML_start_element(me, HTML_BODY, NULL, NULL, tag_charset, NULL);
-		HTML_start_element(me, HTML_PRE, NULL, NULL, tag_charset, NULL);
-		PSRCSTART(entire);
-		psrc_nested_call = FALSE;
-	    }
-
-	    psrc_nested_call = TRUE;
-	    /*write markup for tags and exit */
-	    PSRCSTART(abracket);
-	    PUTC('<');
-	    PSRCSTOP(abracket);
-	    PSRCSTART(tag);
-	    if (tagname_transform != 0)
-		PUTS(tag->name);
-	    else {
-		LYStrNCpy(buf, tag->name, sizeof(buf) - 1);
-		LYLowerCase(buf);
-		PUTS(buf);
-	    }
-	    if (present) {
-		for (i = 0; i < tag->number_of_attributes; i++)
-		    if (present[i]) {
-			PUTC(' ');
-			PSRCSTART(attrib);
-			if (attrname_transform != 0)
-			    PUTS(tag->attributes[i].name);
-			else {
-			    LYStrNCpy(buf,
-				      tag->attributes[i].name,
-				      sizeof(buf) - 1);
-			    LYLowerCase(buf);
-			    PUTS(buf);
-			}
-			if (value[i]) {
-			    char q = '"';
-
-			    /*0 in dquotes, 1 - in quotes, 2 mixed */
-			    char kind = (char) (!StrChr(value[i], '"') ?
-						0 :
-						!StrChr(value[i], '\'') ?
-						q = '\'', 1 :
-						2);
-
-			    PUTC('=');
-			    PSRCSTOP(attrib);
-			    PSRCSTART(attrval);
-			    PUTC(q);
-			    /*is it special ? */
-			    if (tag->attributes[i].type == HTMLA_ANAME) {
-				HTStartAnchor(me, value[i], NULL);
-				HTML_end_element(me, HTML_A, NULL);
-			    } else if (tag->attributes[i].type == HTMLA_HREF) {
-				PSRCSTART(href);
-				HTStartAnchor(me, NULL, value[i]);
-			    }
-			    if (kind != 2)
-				PUTS(value[i]);
-			    else
-				for (p = value[i]; *p; p++)
-				    if (*p != '"')
-					PUTC(*p);
-				    else
-					PUTS("&#34;");
-			    /*is it special ? */
-			    if (tag->attributes[i].type == HTMLA_HREF) {
-				HTML_end_element(me, HTML_A, NULL);
-				PSRCSTOP(href);
-			    }
-			    PUTC(q);
-			    PSRCSTOP(attrval);
-			}	/* if value */
-		    }		/* if present[i] */
-	    }			/* if present */
-	    PSRCSTOP(tag);
-	    PSRCSTART(abracket);
-	    PUTC('>');
-	    PSRCSTOP(abracket);
-	    psrc_nested_call = FALSE;
-	    return HT_OK;
-	}			/*if (!psrc_nested_call) */
-	/*fall through */
-    }
-#endif /* USE_PRETTYSRC */
 
     if (LYMapsOnly) {
 	if (!(ElementNumber == HTML_MAP || ElementNumber == HTML_AREA ||
@@ -1120,7 +982,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
     force_classname = FALSE;
 
     if (force_current_tag_style == FALSE) {
-	current_tag_style = (class_name[0]
+	current_tag_style = (non_empty(class_name)
 			     ? -1
 			     : cached_tag_styles[element_number]);
     } else {
@@ -1129,15 +991,17 @@ static int HTML_start_element(HTStructured * me, int element_number,
 
     CTRACE2(TRACE_STYLE, (tfp, "CSS.elt:<%s>\n", HTML_dtd.tags[element_number].name));
 
+    prefix_string = "";
     if (current_tag_style == -1) {	/* Append class_name */
-	hcode = hash_code_lowercase_on_fly(HTML_dtd.tags[element_number].name);
-	if (class_name[0]) {
+	hcode = color_style_1(HTML_dtd.tags[element_number].name);
+	if (non_empty(class_name)) {
 	    int ohcode = hcode;
 
-	    hcode = hash_code_aggregate_char('.', hcode);
-	    hcode = hash_code_aggregate_lower_str(class_name, hcode);
-	    if (!hashStyles[hcode].name) {	/* None such -> classless version */
+	    prefix_string = HTML_dtd.tags[element_number].name;
+	    hcode = color_style_3(prefix_string, ".", class_name);
+	    if (!hashStyles[hcode].used) {	/* None such -> classless version */
 		hcode = ohcode;
+		prefix_string = "";
 		CTRACE2(TRACE_STYLE,
 			(tfp,
 			 "STYLE.start_element: <%s> (class <%s> not configured), hcode=%d.\n",
@@ -1147,26 +1011,28 @@ static int HTML_start_element(HTStructured * me, int element_number,
 
 		CTRACE2(TRACE_STYLE,
 			(tfp, "STYLE.start_element: <%s>.<%s>, hcode=%d.\n",
-			 HTML_dtd.tags[element_number].name, class_name, hcode));
-		class_used = 1;
+			 prefix_string, class_name, hcode));
+		class_used = TRUE;
 	    }
 	}
 
 	class_string[0] = '\0';
 
     } else {			/* (current_tag_style!=-1)  */
-	if (class_name[0]) {
+	if (non_empty(class_name)) {
 	    addClassName(".", class_name, strlen(class_name));
 	    class_string[0] = '\0';
 	}
 	hcode = current_tag_style;
+	if (hcode >= 0 && hashStyles[hcode].used) {
+	    prefix_string = hashStyles[hcode].name;
+	}
 	CTRACE2(TRACE_STYLE,
 		(tfp, "STYLE.start_element: <%s>, hcode=%d.\n",
 		 HTML_dtd.tags[element_number].name, hcode));
 	current_tag_style = -1;
     }
 
-#if !OMIT_SCN_KEEPING		/* Can be done in other cases too... */
     if (!class_used && ElementNumber == HTML_INPUT) {	/* For some other too? */
 	const char *type = "";
 	int ohcode = hcode;
@@ -1174,9 +1040,8 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	if (present && present[HTML_INPUT_TYPE] && value[HTML_INPUT_TYPE])
 	    type = value[HTML_INPUT_TYPE];
 
-	hcode = hash_code_aggregate_lower_str(".type.", hcode);
-	hcode = hash_code_aggregate_lower_str(type, hcode);
-	if (!hashStyles[hcode].name) {	/* None such -> classless version */
+	hcode = color_style_3(prefix_string, ".type.", type);
+	if (!hashStyles[hcode].used) {	/* None such -> classless version */
 	    hcode = ohcode;
 	    CTRACE2(TRACE_STYLE,
 		    (tfp, "STYLE.start_element: type <%s> not configured.\n",
@@ -1189,7 +1054,6 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		     HTML_dtd.tags[element_number].name, type, hcode));
 	}
     }
-#endif /* !OMIT_SCN_KEEPING */
 
     HText_characterStyle(me->text, hcode, STACK_ON);
 #endif /* USE_COLOR_STYLE */
@@ -1217,9 +1081,6 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	    if (!(url_type = LYLegitimizeHREF(me, &base, TRUE, TRUE))) {
 		CTRACE((tfp, "HTML: BASE '%s' is not an absolute URL.\n",
 			NonNull(base)));
-		if (me->inBadBASE == FALSE)
-		    HTAlert(BASE_NOT_ABSOLUTE);
-		me->inBadBASE = TRUE;
 	    }
 
 	    if (url_type == LYNXIMGMAP_URL_TYPE) {
@@ -1532,7 +1393,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	     */
 	    me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 						     NULL,	/* Tag */
-						     href,	/* Addresss */
+						     href,	/* Address */
 						     (temp
 						      ? (HTLinkType *)
 						      HTAtom_for(temp)
@@ -1562,7 +1423,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	    if (!HText_hasToolbar(me->text) &&
 		(ID_A = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 						  LYToolbarName,	/* Tag */
-						  NULL,		/* Addresss */
+						  NULL,		/* Address */
 						  (HTLinkType *) 0))) {		/* Type */
 		HText_appendCharacter(me->text, '#');
 		HText_setLastChar(me->text, ' ');	/* absorb white space */
@@ -1583,17 +1444,19 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	    if (present && present[HTML_LINK_CLASS] &&
 		non_empty(value[HTML_LINK_CLASS])) {
 		char *tmp = 0;
+		int hcode2;
 
 		HTSprintf0(&tmp, "link.%s.%s", value[HTML_LINK_CLASS], title);
+		hcode2 = color_style_1(tmp);
 		CTRACE2(TRACE_STYLE,
 			(tfp, "STYLE.link: using style <%s>\n", tmp));
 
-		HText_characterStyle(me->text, hash_code(tmp), STACK_ON);
+		HText_characterStyle(me->text, hcode2, STACK_ON);
 		HTML_put_string(me, title);
 		HTML_put_string(me, " (");
 		HTML_put_string(me, value[HTML_LINK_CLASS]);
 		HTML_put_string(me, ")");
-		HText_characterStyle(me->text, hash_code(tmp), STACK_OFF);
+		HText_characterStyle(me->text, hcode2, STACK_OFF);
 		FREE(tmp);
 	    } else
 #endif
@@ -1681,6 +1544,22 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	    HText_appendParagraph(me->text);
 	break;
 
+    case HTML_SECTION:
+    case HTML_ARTICLE:
+    case HTML_MAIN:
+    case HTML_ASIDE:
+    case HTML_HEADER:
+    case HTML_FOOTER:
+    case HTML_NAV:
+	CHECK_ID(HTML_GEN5_ID);
+	if (HText_hasToolbar(me->text))
+	    HText_appendParagraph(me->text);
+	break;
+
+    case HTML_FIGURE:
+	CHECK_ID(HTML_GEN5_ID);
+	break;
+
     case HTML_FRAMESET:
 	break;
 
@@ -1703,7 +1582,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	    }
 	    me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 						     NULL,	/* Tag */
-						     href,	/* Addresss */
+						     href,	/* Address */
 						     (HTLinkType *) 0);		/* Type */
 	    CAN_JUSTIFY_PUSH(FALSE);
 	    LYEnsureSingleSpace(me);
@@ -1755,7 +1634,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 
 	    me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 						     NULL,	/* Tag */
-						     href,	/* Addresss */
+						     href,	/* Address */
 						     (HTLinkType *) 0);		/* Type */
 	    LYEnsureDoubleSpace(me);
 	    CAN_JUSTIFY_PUSH_F
@@ -1799,7 +1678,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	     HText_getLines(me->text) < (display_lines / 2)) &&
 	    (ID_A = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 					      LYToolbarName,	/* Tag */
-					      NULL,	/* Addresss */
+					      NULL,	/* Address */
 					      (HTLinkType *) 0))) {	/* Type */
 	    HText_beginAnchor(me->text, me->inUnderline, ID_A);
 	    HText_endAnchor(me->text, 0);
@@ -1969,14 +1848,15 @@ static int HTML_start_element(HTStructured * me, int element_number,
     case HTML_BR:
 	UPDATE_STYLE;
 	CHECK_ID(HTML_GEN_ID);
-	/* Add a \r (new line) if these three conditions are true:
-	 *   1. We are not collapsing BR's, and
-	 *   2. The previous line has text on it, or
-	 *   3. This line has text on it.
-	 * Otherwise, don't do anything. -DH 980814, TD 980827
+	/* Add a \r (new line) if these conditions are true:
+	 *   * We are not collapsing BR's (and either we are not trimming
+	 *     blank lines, or the preceding line is non-empty), or
+	 *   * The current line has text on it.
+	 * Otherwise, don't do anything. -DH 19980814, TD 19980827/20170704
 	 */
 	if ((LYCollapseBRs == FALSE &&
-	     !HText_PreviousLineEmpty(me->text, FALSE)) ||
+	     (!LYtrimBlankLines ||
+	      !HText_PreviousLineEmpty(me->text, FALSE))) ||
 	    !HText_LastLineEmpty(me->text, FALSE)) {
 	    HText_setLastChar(me->text, ' ');	/* absorb white space */
 	    HText_appendCharacter(me->text, '\r');
@@ -2280,6 +2160,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	CHECK_ID(HTML_GEN_ID);
 	break;
 
+    case HTML_DEL_2:
     case HTML_DEL:
     case HTML_S:
     case HTML_STRIKE:
@@ -2293,6 +2174,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	me->in_word = NO;
 	break;
 
+    case HTML_INS_2:
     case HTML_INS:
 	CHECK_ID(HTML_GEN_ID);
 	if (me->inUnderline == FALSE)
@@ -3282,7 +3164,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		    if (id_string) {
 			if ((ID_A = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							      id_string,	/* Tag */
-							      NULL,	/* Addresss */
+							      NULL,	/* Address */
 							      0)) != NULL) {	/* Type */
 			    HText_beginAnchor(me->text, me->inUnderline, ID_A);
 			    HText_endAnchor(me->text, 0);
@@ -3290,7 +3172,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		    }
 		    me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							     NULL,	/* Tag */
-							     map_href,	/* Addresss */
+							     map_href,	/* Address */
 							     INTERN_LT);	/* Type */
 		    if (me->CurrentA && title) {
 			if ((dest = HTAnchor_parent(HTAnchor_followLink(me->CurrentA)
@@ -3328,7 +3210,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		if (id_string && !map_href) {
 		    if ((ID_A = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							  id_string,	/* Tag */
-							  NULL,		/* Addresss */
+							  NULL,		/* Address */
 							  0)) != NULL) {	/* Type */
 			HText_beginAnchor(me->text, me->inUnderline, ID_A);
 			HText_endAnchor(me->text, 0);
@@ -3340,7 +3222,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		if (id_string) {
 		    if ((ID_A = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							  id_string,	/* Tag */
-							  NULL,		/* Addresss */
+							  NULL,		/* Address */
 							  0)) != NULL) {	/* Type */
 			HText_beginAnchor(me->text, me->inUnderline, ID_A);
 			HText_endAnchor(me->text, 0);
@@ -3348,7 +3230,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		}
 		me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							 NULL,	/* Tag */
-							 map_href,	/* Addresss */
+							 map_href,	/* Address */
 							 INTERN_LT);	/* Type */
 		if (me->CurrentA && title) {
 		    if ((dest = HTAnchor_parent(HTAnchor_followLink(me->CurrentA)
@@ -3383,7 +3265,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		if (id_string) {
 		    if ((ID_A = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							  id_string,	/* Tag */
-							  NULL,		/* Addresss */
+							  NULL,		/* Address */
 							  0)) != NULL) {	/* Type */
 			HText_beginAnchor(me->text, me->inUnderline, ID_A);
 			HText_endAnchor(me->text, 0);
@@ -3396,7 +3278,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	     */
 	    me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 						     NULL,	/* Tag */
-						     href,	/* Addresss */
+						     href,	/* Address */
 						     (HTLinkType *) 0);		/* Type */
 	    FREE(href);
 	    me->CurrentANum = HText_beginAnchor(me->text,
@@ -3448,7 +3330,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	    }
 	    me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 						     NULL,	/* Tag */
-						     map_href,	/* Addresss */
+						     map_href,	/* Address */
 						     INTERN_LT);	/* Type */
 	    if (me->CurrentA && title) {
 		if ((dest = HTAnchor_parent(HTAnchor_followLink(me->CurrentA)
@@ -3483,7 +3365,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	    if (id_string) {
 		if ((ID_A = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 						      id_string,	/* Tag */
-						      NULL,	/* Addresss */
+						      NULL,	/* Address */
 						      (HTLinkType *) 0)) != NULL) {	/* Type */
 		    HText_beginAnchor(me->text, me->inUnderline, ID_A);
 		    HText_endAnchor(me->text, 0);
@@ -3696,7 +3578,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		    TRANSLATE_AND_UNESCAPE_ENTITIES(&me->object_title, TRUE, FALSE);
 		    LYTrimHead(me->object_title);
 		    LYTrimTail(me->object_title);
-		    if (me->object_title == '\0') {
+		    if (*me->object_title == '\0') {
 			FREE(me->object_title);
 		    }
 		}
@@ -3714,7 +3596,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		    TRANSLATE_AND_UNESCAPE_ENTITIES(&me->object_type, TRUE, FALSE);
 		    LYTrimHead(me->object_type);
 		    LYTrimTail(me->object_type);
-		    if (me->object_type == '\0') {
+		    if (*me->object_type == '\0') {
 			FREE(me->object_type);
 		    }
 		}
@@ -3725,7 +3607,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		    TRANSLATE_AND_UNESCAPE_ENTITIES(&me->object_classid, TRUE, FALSE);
 		    LYTrimHead(me->object_classid);
 		    LYTrimTail(me->object_classid);
-		    if (me->object_classid == '\0') {
+		    if (*me->object_classid == '\0') {
 			FREE(me->object_classid);
 		    }
 		}
@@ -3747,7 +3629,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 						    FALSE);
 		    LYTrimHead(me->object_codetype);
 		    LYTrimTail(me->object_codetype);
-		    if (me->object_codetype == '\0') {
+		    if (*me->object_codetype == '\0') {
 			FREE(me->object_codetype);
 		    }
 		}
@@ -3757,7 +3639,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		    TRANSLATE_AND_UNESCAPE_ENTITIES(&me->object_name, TRUE, FALSE);
 		    LYTrimHead(me->object_name);
 		    LYTrimTail(me->object_name);
-		    if (me->object_name == '\0') {
+		    if (*me->object_name == '\0') {
 			FREE(me->object_name);
 		    }
 		}
@@ -3858,7 +3740,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		}
 		me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							 NULL,	/* Tag */
-							 href,	/* Addresss */
+							 href,	/* Address */
 							 (HTLinkType *) 0);	/* Type */
 		HTML_put_character(me, ' ');
 		HText_appendCharacter(me->text, '+');
@@ -3971,7 +3853,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		}
 		me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							 NULL,	/* Tag */
-							 href,	/* Addresss */
+							 href,	/* Address */
 							 (HTLinkType *) 0);	/* Type */
 		me->CurrentANum = HText_beginAnchor(me->text,
 						    me->inUnderline,
@@ -4025,7 +3907,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	    }
 	    me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 						     NULL,	/* Tag */
-						     href,	/* Addresss */
+						     href,	/* Address */
 						     (HTLinkType *) 0);		/* Type */
 	    me->CurrentANum = HText_beginAnchor(me->text,
 						me->inUnderline,
@@ -4110,7 +3992,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		}
 		me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							 NULL,	/* Tag */
-							 href,	/* Addresss */
+							 href,	/* Address */
 							 (HTLinkType *) 0);	/* Type */
 		me->CurrentANum = HText_beginAnchor(me->text,
 						    me->inUnderline,
@@ -4347,6 +4229,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	{
 	    InputFieldData I;
 	    int chars;
+	    BOOL faked_button = FALSE;
 
 	    /* init */
 	    memset(&I, 0, sizeof(I));
@@ -4368,6 +4251,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		     * Ugh, it's a button for a script.  - FM
 		     */
 		    I.type = value[HTML_BUTTON_TYPE];
+		    CTRACE((tfp, "found button for a script\n"));
 		}
 	    } else {
 		/* default, if no type given, is a submit button */
@@ -4408,11 +4292,10 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		/*
 		 * Convert any HTML entities or decimal escaping.  - FM
 		 */
-		StrAllocCopy(I_value, value[HTML_BUTTON_VALUE]);
+		StrAllocCopy(I.value, value[HTML_BUTTON_VALUE]);
 		me->UsePlainSpace = TRUE;
-		TRANSLATE_AND_UNESCAPE_ENTITIES(&I_value, TRUE, me->HiddenValue);
+		TRANSLATE_AND_UNESCAPE_ENTITIES(&I.value, TRUE, me->HiddenValue);
 		me->UsePlainSpace = FALSE;
-		I.value = I_value;
 		/*
 		 * Convert any newlines or tabs to spaces, and trim any lead or
 		 * trailing spaces.  - FM
@@ -4423,6 +4306,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		    StrAllocCopy(I.value, I.name);
 		} else {
 		    StrAllocCopy(I.value, "BUTTON");
+		    faked_button = TRUE;
 		}
 	    } else if (I.value == 0) {
 		StrAllocCopy(I.value, "BUTTON");
@@ -4464,7 +4348,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		 * We have a submit or reset button in a PRE block, so output
 		 * the entire value from the markup.  If it extends to the
 		 * right margin, it will wrap there, and only the portion
-		 * before that wrap will be hightlighted on screen display
+		 * before that wrap will be highlighted on screen display
 		 * (Yuk!) but we may as well show the rest of the full value on
 		 * the next or more lines.  - FM
 		 */
@@ -4502,7 +4386,8 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		HTML_put_character(me, ' ');
 		me->in_word = NO;
 	    }
-	    FREE(I_value);
+	    if (faked_button)
+		FREE(I.value);
 	    FREE(I_name);
 	}
 	break;
@@ -4682,7 +4567,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		    }
 		    me->CurrentA = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							     NULL,	/* Tag */
-							     href,	/* Addresss */
+							     href,	/* Address */
 							     (HTLinkType *) 0);		/* Type */
 		    HText_beginAnchor(me->text, me->inUnderline, me->CurrentA);
 		    if (me->inBoldH == FALSE)
@@ -4701,7 +4586,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	    }
 	    CTRACE((tfp, "2.Ok, we're trying type=[%s] (present=%p)\n",
 		    NONNULL(I.type),
-		    present));
+		    (const void *) present));
 	    /* text+file don't go in here */
 	    if ((UseALTasVALUE == TRUE) ||
 		(present && present[HTML_INPUT_VALUE] &&
@@ -4930,7 +4815,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		     * We have a submit or reset button in a PRE block, so
 		     * output the entire value from the markup.  If it extends
 		     * to the right margin, it will wrap there, and only the
-		     * portion before that wrap will be hightlighted on screen
+		     * portion before that wrap will be highlighted on screen
 		     * display (Yuk!) but we may as well show the rest of the
 		     * full value on the next or more lines.  - FM
 		     */
@@ -4970,7 +4855,8 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		HText_endInput(me->text);
 	    }
 	    FREE(ImageSrc);
-	    FREE(I_value);
+	    if (strcasecomp(NonNull(I.type), "submit"))
+		FREE(I_value);
 	    FREE(I_name);
 	}
 	break;
@@ -5051,10 +4937,10 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	    && non_empty(value[HTML_TEXTAREA_ID])) {
 	    StrAllocCopy(id_string, value[HTML_TEXTAREA_ID]);
 	    TRANSLATE_AND_UNESCAPE_TO_STD(&id_string);
-	    if ((id_string != '\0') &&
+	    if ((*id_string != '\0') &&
 		(ID_A = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 						  id_string,	/* Tag */
-						  NULL,		/* Addresss */
+						  NULL,		/* Address */
 						  (HTLinkType *) 0))) {		/* Type */
 		HText_beginAnchor(me->text, me->inUnderline, ID_A);
 		HText_endAnchor(me->text, 0);
@@ -5196,7 +5082,7 @@ static int HTML_start_element(HTStructured * me, int element_number,
 		    && non_empty(value[HTML_OPTION_ID])) {
 		    if ((ID_A = HTAnchor_findChildAndLink(me->node_anchor,	/* Parent */
 							  value[HTML_OPTION_ID],	/* Tag */
-							  NULL,		/* Addresss */
+							  NULL,		/* Address */
 							  0)) != NULL) {	/* Type */
 			HText_beginAnchor(me->text, me->inUnderline, ID_A);
 			HText_endAnchor(me->text, 0);
@@ -5301,7 +5187,9 @@ static int HTML_start_element(HTStructured * me, int element_number,
 #ifdef EXP_NESTED_TABLES
 	if (!nested_tables)
 #endif
+	{
 	    HText_cancelStbl(me->text);
+	}
 
 	if (me->inA) {
 	    SET_SKIP_STACK(HTML_A);
@@ -5393,7 +5281,6 @@ static int HTML_start_element(HTStructured * me, int element_number,
 	if (me->sp->style->id == ST_Preformatted) {
 	    CHECK_ID(HTML_TR_ID);
 	    me->inP = FALSE;
-/*	    HText_cancelStbl(me->text);  seems unnecessary here - kw */
 	    break;
 	}
 	if (LYoverride_default_alignment(me)) {
@@ -5604,14 +5491,12 @@ static int HTML_start_element(HTStructured * me, int element_number,
     if (ReallyEmptyTagNum(element_number)) {
 	CTRACE2(TRACE_STYLE,
 		(tfp, "STYLE.begin_element:ending \"EMPTY\" element style\n"));
-	HText_characterStyle(me->text, HCODE_TO_STACK_OFF(hcode), STACK_OFF);
+	HText_characterStyle(me->text, hcode, STACK_OFF);
 
-#  if !OMIT_SCN_KEEPING
 	FastTrimColorClass(HTML_dtd.tags[element_number].name,
 			   HTML_dtd.tags[element_number].name_len,
 			   Style_className,
 			   &Style_className_end, &hcode);
-#  endif
     }
 #endif /* USE_COLOR_STYLE */
     return status;
@@ -5642,36 +5527,6 @@ static int HTML_end_element(HTStructured * me, int element_number,
     BOOL skip_stack_requested = FALSE;
 #endif
     EMIT_IFDEF_USE_JUSTIFY_ELTS(BOOL reached_awaited_stacked_elt = FALSE);
-
-#ifdef USE_PRETTYSRC
-    if (psrc_view && !sgml_in_psrc_was_initialized) {
-	if (!psrc_nested_call) {
-	    HTTag *tag = &HTML_dtd.tags[element_number];
-	    char buf[200];
-	    int tag_charset = 0;
-
-	    psrc_nested_call = TRUE;
-	    PSRCSTART(abracket);
-	    PUTS("</");
-	    PSRCSTOP(abracket);
-	    PSRCSTART(tag);
-	    if (tagname_transform != 0)
-		PUTS(tag->name);
-	    else {
-		LYStrNCpy(buf, tag->name, sizeof(buf) - 1);
-		LYLowerCase(buf);
-		PUTS(buf);
-	    }
-	    PSRCSTOP(tag);
-	    PSRCSTART(abracket);
-	    PUTC('>');
-	    PSRCSTOP(abracket);
-	    psrc_nested_call = FALSE;
-	    return HT_OK;
-	}
-	/*fall through */
-    }
-#endif
 
     if ((me->sp >= (me->stack + MAX_NESTING - 1) ||
 	 element_number != me->sp[0].tag_number) &&
@@ -6124,6 +5979,7 @@ static int HTML_end_element(HTStructured * me, int element_number,
 	HText_appendCharacter(me->text, ']');
 	break;
 
+    case HTML_DEL_2:
     case HTML_DEL:
     case HTML_S:
     case HTML_STRIKE:
@@ -6137,6 +5993,7 @@ static int HTML_end_element(HTStructured * me, int element_number,
 	me->in_word = NO;
 	break;
 
+    case HTML_INS_2:
     case HTML_INS:
 	HTML_put_character(me, ' ');
 	if (me->inUnderline == FALSE)
@@ -6448,7 +6305,7 @@ static int HTML_end_element(HTStructured * me, int element_number,
 		if (start != NULL &&
 		    first_end != NULL && first_end > start) {
 		    /*
-		     * Minumum requirements for the ad hoc parsing to have
+		     * Minimum requirements for the ad hoc parsing to have
 		     * succeeded are met.  We'll hope that it did succeed.  -
 		     * FM
 		     */
@@ -7215,19 +7072,17 @@ static int HTML_end_element(HTStructured * me, int element_number,
     }
 #ifdef USE_COLOR_STYLE
     if (!skip_stack_requested) {	/*don't emit stylechanges if skipped stack element - VH */
-# if !OMIT_SCN_KEEPING
 	FastTrimColorClass(HTML_dtd.tags[element_number].name,
 			   HTML_dtd.tags[element_number].name_len,
 			   Style_className,
 			   &Style_className_end, &hcode);
-#  endif
 
 	if (!ReallyEmptyTagNum(element_number)) {
 	    CTRACE2(TRACE_STYLE,
 		    (tfp,
 		     "STYLE.end_element: ending non-\"EMPTY\" style <%s...>\n",
 		     HTML_dtd.tags[element_number].name));
-	    HText_characterStyle(me->text, HCODE_TO_STACK_OFF(hcode), STACK_OFF);
+	    HText_characterStyle(me->text, hcode, STACK_OFF);
 	}
     }
 #endif /* USE_COLOR_STYLE */
@@ -7641,7 +7496,11 @@ HTStructured *HTML_new(HTParentAnchor *anchor,
 
     HTStructured *me;
 
-    CTRACE((tfp, "start HTML_new\n"));
+    CTRACE((tfp, "start HTML_new(parent %s, format %s)\n",
+	    ((anchor)
+	     ? NONNULL(anchor->address)
+	     : "<NULL>"),
+	    HTAtom_name(format_out)));
 
     if (format_out != WWW_PLAINTEXT && format_out != WWW_PRESENT) {
 	HTStream *intermediate = HTStreamStack(WWW_HTML, format_out,
@@ -7657,7 +7516,6 @@ HTStructured *HTML_new(HTParentAnchor *anchor,
     me = typecalloc(HTStructured);
     if (me == NULL)
 	outofmem(__FILE__, "HTML_new");
-    assert(me != NULL);
 
     /*
      * This used to call 'get_styles()' only on the first time through this
@@ -7743,7 +7601,6 @@ HTStructured *HTML_new(HTParentAnchor *anchor,
     me->inA = FALSE;
     me->inAPPLET = FALSE;
     me->inAPPLETwithP = FALSE;
-    me->inBadBASE = FALSE;
     me->inBadHREF = FALSE;
     me->inBadHTML = FALSE;
     me->inBASE = FALSE;
@@ -8016,8 +7873,6 @@ static HTStream *CacheThru_new(HTParentAnchor *anchor,
     stream = (HTStream *) malloc(sizeof(*stream));
     if (!stream)
 	outofmem(__FILE__, "CacheThru_new");
-
-    assert(stream != NULL);
 
     stream->isa = &PassThruCache;
     stream->anchor = anchor;

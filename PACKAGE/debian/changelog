@@ -1,8 +1,8 @@
-lynx-dev (2.8.9dev.1) unstable; urgency=low
+lynx-dev (2.9.0dev.9) unstable; urgency=low
 
   * maintenance updates
 
- -- Thomas E. Dickey <dickey@invisible-island.net>  Mon, 10 Mar 2014 17:44:33 -0400
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 01 Aug 2021 14:50:52 -0400
 
 lynx-dev (2.8.8dev.16) unstable; urgency=high
 
@@ -18,7 +18,7 @@ lynx-dev (2.8.8dev.15) unstable; urgency=high
 
 lynx-dev (2.8.8dev.14) unstable; urgency=high
 
-  * fix regresion in dev.13
+  * fix regression in dev.13
 
  -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 22 Aug 2012 06:22:28 -0400
 

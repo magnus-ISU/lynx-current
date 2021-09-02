@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTTCP.c,v 1.129 2013/12/07 15:36:55 tom Exp $
+ * $LynxId: HTTCP.c,v 1.160 2021/06/08 23:44:43 tom Exp $
  *
  *			Generic Communication Code		HTTCP.c
  *			==========================
@@ -19,6 +19,9 @@
  *	16 Jul 95  S. Bjorndahl added kluge to deal with LIBCMU bug
  */
 
+#define LYNX_ADDRINFO	struct addrinfo
+#define LYNX_HOSTENT	struct hostent
+
 #include <HTUtils.h>
 #include <HTParse.h>
 #include <HTAlert.h>
@@ -29,6 +32,11 @@
 #ifdef NSL_FORK
 #include <signal.h>
 #include <www_wait.h>
+#define FREE_NSL_FORK(p) { FREE(p); }
+#elif defined(_WINDOWS_NSL)
+#define FREE_NSL_FORK(p) if ((p) == gbl_phost) { FREE(p); }
+#else
+#define FREE_NSL_FORK(p)	/* nothing */
 #endif /* NSL_FORK */
 
 #ifdef HAVE_RESOLV_H
@@ -38,9 +46,6 @@
 #ifdef __DJGPP__
 #include <netdb.h>
 #endif /* __DJGPP__ */
-
-#define LYNX_ADDRINFO	struct addrinfo
-#define LYNX_HOSTENT	struct hostent
 
 #define OK_HOST(p) ((p) != 0 && ((p)->h_length) != 0)
 
@@ -275,18 +280,20 @@ unsigned int HTCardinal(int *pstatus,
  *	returns a pointer to a static string which must be copied if
  *		it is to be kept.
  */
-const char *HTInetString(SockA * soc_in)
+const char *HTInetString(LY_SOCKADDR * soc_A)
 {
 #ifdef INET6
     static char hostbuf[MAXHOSTNAMELEN];
+    struct sockaddr *soc_addr = &(soc_A->soc_address);
 
-    getnameinfo((struct sockaddr *) soc_in,
-		SOCKADDR_LEN(soc_in),
+    getnameinfo(soc_addr,
+		SA_LEN(soc_addr),
 		hostbuf, (socklen_t) sizeof(hostbuf),
 		NULL, 0,
 		NI_NUMERICHOST);
     return hostbuf;
 #else
+    struct sockaddr_in *soc_in = &(soc_A->soc_in);
     static char string[20];
 
     sprintf(string, "%d.%d.%d.%d",
@@ -380,7 +387,7 @@ int lynx_nsl_status = HT_OK;
  *  addresses, in a format inspired by gdb's print format. - kw
  */
 static void dump_hostent(const char *msgprefix,
-			 void *data)
+			 const void *data)
 {
     if (TRACE) {
 	int i;
@@ -389,7 +396,7 @@ static void dump_hostent(const char *msgprefix,
 
 	CTRACE((tfp, "%s: %p ", msgprefix, (const void *) phost));
 	if (phost) {
-	    CTRACE((tfp, "{ h_name = %p", phost->h_name));
+	    CTRACE((tfp, "{ h_name = %p", (void *) phost->h_name));
 	    if (phost->h_name) {
 		CTRACE((tfp, " \"%s\",", phost->h_name));
 	    } else {
@@ -401,7 +408,7 @@ static void dump_hostent(const char *msgprefix,
 		for (pcnt = phost->h_aliases; *pcnt; pcnt++) {
 		    CTRACE((tfp, "%s %p \"%s\"",
 			    (pcnt == phost->h_aliases ? " " : ", "),
-			    *pcnt, *pcnt));
+			    (void *) *pcnt, *pcnt));
 		}
 		CTRACE((tfp, "%s0x0 },\n\t",
 			(*phost->h_aliases ? ", " : " ")));
@@ -416,7 +423,7 @@ static void dump_hostent(const char *msgprefix,
 		for (pcnt = phost->h_addr_list; *pcnt; pcnt++) {
 		    CTRACE((tfp, "%s %p",
 			    (pcnt == phost->h_addr_list ? "" : ","),
-			    *pcnt));
+			    (void *) *pcnt));
 		    for (i = 0; i < phost->h_length; i++) {
 			CTRACE((tfp, "%s%d%s", (i == 0 ? " \"" : "."),
 				(int) *((unsigned char *) (*pcnt) + i),
@@ -537,6 +544,8 @@ typedef struct {
 static size_t fill_rehostent(void **rehostent,
 			     const LYNX_HOSTENT *phost)
 {
+    static const char *this_func = "fill_rehostent";
+
     LYNX_HOSTENT *data = 0;
     int num_addrs = 0;
     int num_aliases = 0;
@@ -570,7 +579,7 @@ static size_t fill_rehostent(void **rehostent,
     }
 
     if ((result = calloc(need, sizeof(char))) == 0)
-	  outofmem(__FILE__, "fill_rehostent");
+	  outofmem(__FILE__, this_func);
 
     *rehostent = result;
 
@@ -671,13 +680,18 @@ extern int h_errno;
 #endif
 #endif
 
-static BOOL setup_nsl_fork(void (*really) (char *, char *, STATUSES *, void **),
+static BOOL setup_nsl_fork(void (*really) (const char *,
+					   const char *,
+					   STATUSES *,
+					   void **),
 			   unsigned (*readit) (int, char *, size_t),
-			   void (*dumpit) (const char *, void *),
-			   char *host,
-			   char *port,
+			   void (*dumpit) (const char *, const void *),
+			   const char *host,
+			   const char *port,
 			   void **rehostent)
 {
+    static const char *this_func = "setup_nsl_fork";
+
     STATUSES statuses;
 
     /*
@@ -933,7 +947,7 @@ static BOOL setup_nsl_fork(void (*really) (char *, char *, STATUSES *, void **),
 		     * Then get the full reorganized hostent.  -BL, kw
 		     */
 		    if ((*rehostent = malloc(statuses.rehostentlen)) == 0)
-			outofmem(__FILE__, "setup_nsl_fork");
+			outofmem(__FILE__, this_func);
 		    readret = (*readit) (pfd[0], *rehostent, statuses.rehostentlen);
 #ifdef DEBUG_HOSTENT
 		    dumpit("Read from pipe", *rehostent);
@@ -984,7 +998,7 @@ static BOOL setup_nsl_fork(void (*really) (char *, char *, STATUSES *, void **),
 	 * Abort if interrupt key pressed.
 	 */
 	if (HTCheckForInterrupt()) {
-	    CTRACE((tfp, "LYGetHostByName: INTERRUPTED gethostbyname.\n"));
+	    CTRACE((tfp, "%s: INTERRUPTED gethostbyname.\n", this_func));
 	    kill(fpid, SIGTERM);
 	    waitpid(fpid, NULL, WNOHANG);
 	    close(pfd[0]);
@@ -1000,23 +1014,23 @@ static BOOL setup_nsl_fork(void (*really) (char *, char *, STATUSES *, void **),
     if (waitret > 0) {
 	if (WIFEXITED(waitstat)) {
 	    CTRACE((tfp,
-		    "LYGetHostByName: NSL_FORK child %d exited, status 0x%x.\n",
-		    (int) waitret, WEXITSTATUS(waitstat)));
+		    "%s: NSL_FORK child %d exited, status 0x%x.\n",
+		    this_func, (int) waitret, WEXITSTATUS(waitstat)));
 	} else if (WIFSIGNALED(waitstat)) {
 	    CTRACE((tfp,
-		    "LYGetHostByName: NSL_FORK child %d got signal, status 0x%x!\n",
-		    (int) waitret, WTERMSIG(waitstat)));
+		    "%s: NSL_FORK child %d got signal, status 0x%x!\n",
+		    this_func, (int) waitret, WTERMSIG(waitstat)));
 #ifdef WCOREDUMP
 	    if (WCOREDUMP(waitstat)) {
 		CTRACE((tfp,
-			"LYGetHostByName: NSL_FORK child %d dumped core!\n",
-			(int) waitret));
+			"%s: NSL_FORK child %d dumped core!\n",
+			this_func, (int) waitret));
 	    }
 #endif /* WCOREDUMP */
 	} else if (WIFSTOPPED(waitstat)) {
 	    CTRACE((tfp,
-		    "LYGetHostByName: NSL_FORK child %d is stopped, status 0x%x!\n",
-		    (int) waitret, WSTOPSIG(waitstat)));
+		    "%s: NSL_FORK child %d is stopped, status 0x%x!\n",
+		    this_func, (int) waitret, WSTOPSIG(waitstat)));
 	}
     }
     if (!got_rehostent) {
@@ -1030,8 +1044,8 @@ static BOOL setup_nsl_fork(void (*really) (char *, char *, STATUSES *, void **),
 /*
  * This is called via the child-side of the fork.
  */
-static void really_gethostbyname(char *host,
-				 char *port GCC_UNUSED,
+static void really_gethostbyname(const char *host,
+				 const char *port GCC_UNUSED,
 				 STATUSES * statuses,
 				 void **rehostent)
 {
@@ -1108,8 +1122,9 @@ static void really_gethostbyname(char *host,
  *	HT_ERROR		Resolver error, reason not known
  *	HT_INTERNAL		Internal error
  */
-LYNX_HOSTENT *LYGetHostByName(char *host)
+static LYNX_HOSTENT *LYGetHostByName(char *host)
 {
+    static const char *this_func = "LYGetHostByName";
 
 #ifdef NSL_FORK
     /* for transfer of result between from child to parent: */
@@ -1123,15 +1138,15 @@ LYNX_HOSTENT *LYGetHostByName(char *host)
 #endif
 
     if (!host) {
-	CTRACE((tfp, "LYGetHostByName: Can't parse `NULL'.\n"));
+	CTRACE((tfp, "%s: Can't parse `NULL'.\n", this_func));
 	lynx_nsl_status = HT_INTERNAL;
 	return NULL;
     }
-    CTRACE((tfp, "LYGetHostByName: parsing `%s'.\n", host));
+    CTRACE((tfp, "%s: parsing `%s'.\n", this_func, host));
 
     /*  Could disable this if all our callers already check - kw */
     if (HTCheckForInterrupt()) {
-	CTRACE((tfp, "LYGetHostByName: INTERRUPTED for '%s'.\n", host));
+	CTRACE((tfp, "%s: INTERRUPTED for '%s'.\n", this_func, host));
 	lynx_nsl_status = HT_INTERRUPTED;
 	return NULL;
     }
@@ -1148,7 +1163,7 @@ LYNX_HOSTENT *LYGetHostByName(char *host)
 	return NULL;
     }
 #ifdef MVS			/* Outstanding problem with crash in MVS gethostbyname */
-    CTRACE((tfp, "LYGetHostByName: Calling gethostbyname(%s)\n", host));
+    CTRACE((tfp, "%s: Calling gethostbyname(%s)\n", this_func, host));
 #endif /* MVS */
 
     CTRACE_FLUSH(tfp);		/* so child messages will not mess up parent log */
@@ -1226,7 +1241,7 @@ LYNX_HOSTENT *LYGetHostByName(char *host)
 
 	phost = gethostbyname(host);	/* See netdb.h */
 #ifdef MVS
-	CTRACE((tfp, "LYGetHostByName: gethostbyname() returned %d\n", phost));
+	CTRACE((tfp, "%s: gethostbyname() returned %d\n", this_func, phost));
 #endif /* MVS */
 	if (phost) {
 	    lynx_nsl_status = HT_OK;
@@ -1240,16 +1255,24 @@ LYNX_HOSTENT *LYGetHostByName(char *host)
 #endif /* !NSL_FORK */
 
 #ifdef DEBUG_HOSTENT
-    dump_hostent("LYGetHostByName", result_phost);
-    CTRACE((tfp, "LYGetHostByName: Resolved name to a hostent.\n"));
+    dump_hostent(this_func, result_phost);
+    CTRACE((tfp, "%s: Resolved name to a hostent.\n", this_func));
 #endif
 
     return result_phost;	/* OK */
 
   failed:
-    CTRACE((tfp, "LYGetHostByName: Can't find internet node name `%s'.\n",
-	    host));
+    CTRACE((tfp, "%s: Can't find internet node name `%s'.\n", this_func, host));
     return NULL;
+}
+
+BOOLEAN LYCheckHostByName(char *host)
+{
+    LYNX_HOSTENT *data = LYGetHostByName(host);
+    BOOLEAN result = (data != NULL);
+
+    FREE_NSL_FORK(data);
+    return result;
 }
 
 /*	Parse a network node address and port
@@ -1265,20 +1288,22 @@ LYNX_HOSTENT *LYGetHostByName(char *host)
  *		field is left unchanged in *soc_in.
  */
 #ifndef INET6
-static int HTParseInet(SockA * soc_in, const char *str)
+static int HTParseInet(SockA *soc_in, const char *str)
 {
+    static const char *this_func = "HTParseInet";
+
     char *port;
     int dotcount_ip = 0;	/* for dotted decimal IP addr */
     char *strptr;
     char *host = NULL;
 
     if (!str) {
-	CTRACE((tfp, "HTParseInet: Can't parse `NULL'.\n"));
+	CTRACE((tfp, "%s: Can't parse `NULL'.\n", this_func));
 	return -1;
     }
-    CTRACE((tfp, "HTParseInet: parsing `%s'.\n", str));
+    CTRACE((tfp, "%s: parsing `%s'.\n", this_func, str));
     if (HTCheckForInterrupt()) {
-	CTRACE((tfp, "HTParseInet: INTERRUPTED for '%s'.\n", str));
+	CTRACE((tfp, "%s: INTERRUPTED for '%s'.\n", this_func, str));
 	return -1;
     }
     StrAllocCopy(host, str);	/* Make a copy we can mutilate */
@@ -1347,9 +1372,6 @@ static int HTParseInet(SockA * soc_in, const char *str)
      */
     if (dotcount_ip == 3)	/* Numeric node address: */
     {
-#ifdef DGUX_OLD
-	soc_in->sin_addr.s_addr = inet_addr(host).s_addr;	/* See arpa/inet.h */
-#else
 #ifdef GUSI
 	soc_in->sin_addr = inet_addr(host);	/* See netinet/in.h */
 #else
@@ -1363,12 +1385,11 @@ static int HTParseInet(SockA * soc_in, const char *str)
 	soc_in->sin_addr.s_addr = inet_addr(host);	/* See arpa/inet.h */
 #endif /* HAVE_INET_ATON */
 #endif /* GUSI */
-#endif /* DGUX_OLD */
 	FREE(host);
     } else {			/* Alphanumeric node name: */
 
 #ifdef MVS			/* Outstanding problem with crash in MVS gethostbyname */
-	CTRACE((tfp, "HTParseInet: Calling LYGetHostByName(%s)\n", host));
+	CTRACE((tfp, "%s: Calling LYGetHostByName(%s)\n", this_func, host));
 #endif /* MVS */
 
 #ifdef _WINDOWS_NSL
@@ -1376,6 +1397,7 @@ static int HTParseInet(SockA * soc_in, const char *str)
 	if (!gbl_phost)
 	    goto failed;
 	MemCpy((void *) &soc_in->sin_addr, gbl_phost->h_addr_list[0], gbl_phost->h_length);
+	FREE(gbl_phost);
 #else /* !_WINDOWS_NSL */
 	{
 	    LYNX_HOSTENT *phost;
@@ -1388,6 +1410,7 @@ static int HTParseInet(SockA * soc_in, const char *str)
 		HTAlwaysAlert(host, gettext("Address length looks invalid"));
 	    }
 	    MemCpy((void *) &soc_in->sin_addr, phost->h_addr_list[0], phost->h_length);
+	    FREE_NSL_FORK(phost);
 	}
 #endif /* _WINDOWS_NSL */
 
@@ -1395,7 +1418,8 @@ static int HTParseInet(SockA * soc_in, const char *str)
     }				/* Alphanumeric node name */
 
     CTRACE((tfp,
-	    "HTParseInet: Parsed address as port %d, IP address %d.%d.%d.%d\n",
+	    "%s: Parsed address as port %d, IP address %d.%d.%d.%d\n",
+	    this_func,
 	    (int) ntohs(soc_in->sin_port),
 	    (int) *((unsigned char *) (&soc_in->sin_addr) + 0),
 	    (int) *((unsigned char *) (&soc_in->sin_addr) + 1),
@@ -1406,8 +1430,8 @@ static int HTParseInet(SockA * soc_in, const char *str)
     return 0;			/* OK */
 
   failed:
-    CTRACE((tfp, "HTParseInet: Can't find internet node name `%s'.\n",
-	    host));
+    CTRACE((tfp, "%s: Can't find internet node name `%s'.\n",
+	    this_func, host));
     FREE(host);
     switch (lynx_nsl_status) {
     case HT_NOT_ACCEPTABLE:
@@ -1421,13 +1445,13 @@ static int HTParseInet(SockA * soc_in, const char *str)
 
 #ifdef INET6
 
-static void dump_addrinfo(const char *tag, void *data)
+static void dump_addrinfo(const char *tag, const void *data)
 {
-    LYNX_ADDRINFO *res;
+    const LYNX_ADDRINFO *res;
     int count = 0;
 
     CTRACE((tfp, "dump_addrinfo %s:\n", tag));
-    for (res = (LYNX_ADDRINFO *) data; res; res = res->ai_next) {
+    for (res = (const LYNX_ADDRINFO *) data; res; res = res->ai_next) {
 	char hostbuf[1024], portbuf[1024];
 
 	++count;
@@ -1457,6 +1481,8 @@ static void dump_addrinfo(const char *tag, void *data)
 static size_t fill_addrinfo(void **buffer,
 			    const LYNX_ADDRINFO *phost)
 {
+    static const char *this_func = "fill_addinfo";
+
     const LYNX_ADDRINFO *q;
     LYNX_ADDRINFO *actual;
     LYNX_ADDRINFO *result;
@@ -1474,7 +1500,7 @@ static size_t fill_addrinfo(void **buffer,
     CTRACE((tfp, "...fill_addrinfo %d:%lu\n", limit, (unsigned long) need));
 
     if ((result = (LYNX_ADDRINFO *) calloc(1, need)) == 0)
-	outofmem(__FILE__, "fill_addrinfo");
+	outofmem(__FILE__, this_func);
 
     *buffer = actual = result;
     heap = ((char *) actual) + ((size_t) limit * sizeof(LYNX_ADDRINFO));
@@ -1545,12 +1571,12 @@ static unsigned read_addrinfo(int fd, char *buffer, size_t length)
 /*
  * This is called via the child-side of the fork.
  */
-static void really_getaddrinfo(char *host,
-			       char *port,
+static void really_getaddrinfo(const char *host,
+			       const char *port,
 			       STATUSES * statuses,
 			       void **result)
 {
-    LYNX_ADDRINFO hints, *res;
+    LYNX_ADDRINFO hints, *res = 0;
     int error;
 
     memset(&hints, 0, sizeof(hints));
@@ -1572,15 +1598,16 @@ static void really_getaddrinfo(char *host,
 #endif
 	statuses->rehostentlen = fill_addrinfo(result, res);
 #ifdef DEBUG_HOSTENT_CHILD
-	dump_addrinfo("CHILD fill_addrinfo", (LYNX_ADDRINFO *) (*result));
+	dump_addrinfo("CHILD fill_addrinfo", (const LYNX_ADDRINFO *) (*result));
 #endif
-	if (statuses->rehostentlen <= sizeof(LYNX_ADDRINFO)) {
+	if (statuses->rehostentlen <= sizeof(LYNX_ADDRINFO) || (*result) == NULL) {
 	    statuses->rehostentlen = 0;
 	    statuses->h_length = 0;
 	} else {
 	    statuses->h_length = (int) (((LYNX_ADDRINFO *) (*result))->ai_addrlen);
 	}
     }
+    freeaddrinfo(res);
 }
 #endif /* NSL_FORK */
 
@@ -1644,6 +1671,15 @@ static LYNX_ADDRINFO *HTGetAddrInfo(const char *str,
     dump_addrinfo("HTGetAddrInfo", res);
 #endif
     return res;
+}
+
+BOOLEAN HTCheckAddrInfo(const char *str, const int defport)
+{
+    LYNX_ADDRINFO *data = HTGetAddrInfo(str, defport);
+    BOOLEAN result = (data != 0);
+
+    FREE_NSL_FORK(data);
+    return result;
 }
 #endif /* INET6 */
 
@@ -1789,19 +1825,75 @@ int HTDoConnect(const char *url,
 		int default_port,
 		int *s)
 {
-    int status = 0;
+    char *socks5_host = NULL;
+    unsigned socks5_host_len = 0;
+    int socks5_port;
+    const char *socks5_orig_url;
+    char *socks5_new_url = NULL;
+    char *socks5_protocol = NULL;
+    int status = HT_OK;
     char *line = NULL;
     char *p1 = NULL;
-    char *at_sign = NULL;
     char *host = NULL;
+    char const *emsg;
 
 #ifdef INET6
     LYNX_ADDRINFO *res = 0, *res0 = 0;
 
 #else
-    struct sockaddr_in soc_address;
-    struct sockaddr_in *soc_in = &soc_address;
+    struct sockaddr_in sock_A;
+    struct sockaddr_in *soc_in = &sock_A;
+#endif
 
+    *s = -1;			/* nothing is open yet */
+
+    /* In case of a present SOCKS5 proxy, marshal */
+    if (socks5_proxy == NULL)
+	socks5_proxy = LYGetEnv("SOCKS5_PROXY");
+    if ((socks5_orig_url = socks5_proxy) != NULL) {
+	int xport;
+
+	xport = default_port;
+	socks5_orig_url = url;
+	StrAllocCopy(socks5_new_url, url);
+
+	/* Get node name and optional port number of wanted URL */
+	if ((p1 = HTParse(socks5_new_url, "", PARSE_HOST)) != NULL) {
+	    StrAllocCopy(socks5_host, p1);
+	    strip_userid(socks5_host, FALSE);
+	    FREE(p1);
+	}
+
+	if (isEmpty(socks5_host)) {
+	    emsg = gettext("SOCKS5: no hostname found.");
+	    status = HT_ERROR;
+	    goto report_error;
+	}
+
+	if (strlen(socks5_host) > 255) {
+	    emsg = gettext("SOCKS5: hostname too long.");
+	    status = HT_ERROR;
+	    goto report_error;
+	}
+	socks5_host_len = (unsigned) strlen(socks5_host);
+
+	if (HTParsePort(socks5_new_url, &socks5_port) == NULL)
+	    socks5_port = xport;
+	FREE(socks5_new_url);
+
+	/* And switch over to our SOCKS5 config; in order to embed that into
+	 * lynx environment, prepend protocol prefix */
+	default_port = 1080;	/* RFC 1928 */
+	HTSACat(&socks5_new_url, "socks://");
+	HTSACat(&socks5_new_url, socks5_proxy);
+	url = socks5_new_url;
+
+	socks5_protocol = HTSprintf0(NULL,
+				     gettext("(for %s at %s) SOCKS5"),
+				     protocol, socks5_host);
+	protocol = socks5_protocol;
+    }
+#ifndef INET6
     /*
      * Set up defaults.
      */
@@ -1814,14 +1906,8 @@ int HTDoConnect(const char *url,
      * Get node name and optional port number.
      */
     p1 = HTParse(url, "", PARSE_HOST);
-    if ((at_sign = StrChr(p1, '@')) != NULL) {
-	/*
-	 * If there's an @ then use the stuff after it as a hostname.
-	 */
-	StrAllocCopy(host, (at_sign + 1));
-    } else {
-	StrAllocCopy(host, p1);
-    }
+    StrAllocCopy(host, p1);
+    strip_userid(host, FALSE);
     FREE(p1);
 
     HTSprintf0(&line, "%s%s", WWW_FIND_MESSAGE, host);
@@ -1832,9 +1918,8 @@ int HTDoConnect(const char *url,
     if (res0 == NULL) {
 	HTSprintf0(&line, gettext("Unable to locate remote host %s."), host);
 	_HTProgress(line);
-	FREE(host);
-	FREE(line);
-	return HT_NO_DATA;
+	status = HT_NO_DATA;
+	goto cleanup;
     }
 #else
     status = HTParseInet(soc_in, host);
@@ -1853,16 +1938,12 @@ int HTDoConnect(const char *url,
 	    }
 	    status = HT_NO_DATA;
 	}
-	FREE(host);
-	FREE(line);
-	return status;
+	goto cleanup;
     }
 #endif /* INET6 */
 
     HTSprintf0(&line, gettext("Making %s connection to %s"), protocol, host);
     _HTProgress(line);
-    FREE(host);
-    FREE(line);
 
     /*
      * Now, let's get a socket set up from the server for the data.
@@ -1870,8 +1951,9 @@ int HTDoConnect(const char *url,
 #ifndef INET6
     *s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (*s == -1) {
-	HTAlert(gettext("socket failed."));
-	return HT_NO_DATA;
+	status = HT_NO_DATA;
+	emsg = gettext("socket failed.");
+	goto report_error;
     }
 #else
     for (res = res0; res; res = res->ai_next) {
@@ -1887,7 +1969,6 @@ int HTDoConnect(const char *url,
 		       gettext("socket failed: family %d addr %s port %s."),
 		       res->ai_family, hostbuf, portbuf);
 	    _HTProgress(line);
-	    FREE(line);
 	    continue;
 	}
 #endif /* INET6 */
@@ -1923,18 +2004,14 @@ int HTDoConnect(const char *url,
 #ifdef INET6
 	    status = Rconnect(*s, res->ai_addr, res->ai_addrlen);
 #else
-	    status = Rconnect(*s, (struct sockaddr *) &soc_address,
-			      sizeof(soc_address));
-#ifndef SHORTENED_RBIND
-	    socks_bind_remoteAddr = soc_address.sin_addr.s_addr;
-#endif
+	    status = Rconnect(*s, SOCKADDR_OF(sock_A), sizeof(sock_A));
 #endif /* INET6 */
 	} else
 #endif /* SOCKS */
 #ifdef INET6
 	    status = connect(*s, res->ai_addr, res->ai_addrlen);
 #else
-	    status = connect(*s, (struct sockaddr *) &soc_address, sizeof(soc_address));
+	    status = connect(*s, SOCKADDR_OF(sock_A), sizeof(sock_A));
 #endif /* INET6 */
 
 	/*
@@ -1966,7 +2043,9 @@ int HTDoConnect(const char *url,
 	    int tries = 0;
 
 #ifdef SOCKET_DEBUG_TRACE
-	    HTInetStatus("this socket's first connect");
+	    if (SOCKET_ERRNO != EINPROGRESS) {
+		HTInetStatus("this socket's first connect");
+	    }
 #endif /* SOCKET_DEBUG_TRACE */
 	    ret = 0;
 	    while (ret <= 0) {
@@ -1978,17 +2057,17 @@ int HTDoConnect(const char *url,
 		if ((tries++ / TRIES_PER_SECOND) >= connect_timeout) {
 		    HTAlert(gettext("Connection failed (too many retries)."));
 #ifdef INET6
-		    FREE(line);
 #ifndef NSL_FORK
 		    if (res0)
 			freeaddrinfo(res0);
 #endif
 #endif /* INET6 */
-		    return HT_NO_DATA;
+		    status = HT_NO_DATA;
+		    goto cleanup;
 		}
 		set_timeout(&select_timeout);
 		FD_ZERO(&writefds);
-		FD_SET((unsigned) *s, &writefds);
+		FD_SET((LYNX_FD) *s, &writefds);
 #ifdef SOCKS
 		if (socks_flag)
 		    ret = Rselect(*s + 1, NULL,
@@ -2003,7 +2082,9 @@ int HTDoConnect(const char *url,
 
 #ifdef SOCKET_DEBUG_TRACE
 		if (tries == 1) {
-		    HTInetStatus("this socket's first select");
+		    if (SOCKET_ERRNO != EINPROGRESS) {
+			HTInetStatus("this socket's first select");
+		    }
 		}
 #endif /* SOCKET_DEBUG_TRACE */
 		/*
@@ -2032,6 +2113,11 @@ int HTDoConnect(const char *url,
 		if ((ret < 0) && (SOCKET_ERRNO != EALREADY)) {
 		    status = ret;
 		    break;
+		} else if (((SOCKET_ERRNO == EALREADY) ||
+			    (SOCKET_ERRNO == EINPROGRESS)) &&
+			   HTCheckForInterrupt()) {
+		    status = HT_INTERRUPTED;
+		    break;
 		} else if (ret > 0) {
 		    /*
 		     * Extra check here for connection success, if we try to
@@ -2046,8 +2132,7 @@ int HTDoConnect(const char *url,
 #ifdef INET6
 			status = connect(*s, res->ai_addr, res->ai_addrlen);
 #else
-			status = connect(*s, (struct sockaddr *) &soc_address,
-					 sizeof(soc_address));
+			status = connect(*s, SOCKADDR_OF(sock_A), sizeof(sock_A));
 #endif /* INET6 */
 #ifdef UCX
 			/*
@@ -2099,8 +2184,7 @@ int HTDoConnect(const char *url,
 #ifdef INET6
 		    status = connect(*s, res->ai_addr, res->ai_addrlen);
 #else
-		    status = connect(*s, (struct sockaddr *) &soc_address,
-				     sizeof(soc_address));
+		    status = connect(*s, SOCKADDR_OF(sock_A), sizeof(sock_A));
 #endif /* INET6 */
 		    if ((status < 0) &&
 			(SOCKET_ERRNO != EALREADY
@@ -2133,7 +2217,8 @@ int HTDoConnect(const char *url,
 	if (status < 0) {
 	    NETCLOSE(*s);
 	    *s = -1;
-	    continue;
+	    if (status != HT_INTERRUPTED)
+		continue;
 	}
 	break;
     }
@@ -2171,17 +2256,156 @@ int HTDoConnect(const char *url,
 #endif /* !DOSPATH || __DJGPP__ */
 
 #ifdef INET6
-    FREE(line);
-#ifndef NSL_FORK
+#ifdef NSL_FORK
+    FREE_NSL_FORK(res0);
+#else
     if (res0)
 	freeaddrinfo(res0);
 #endif
 #endif /* INET6 */
+
+    /* Now if this was a SOCKS5 proxy connection, go for the real one */
+    if (status >= 0 && socks5_orig_url != NULL) {
+	unsigned char pbuf[4 + 1 + 255 + 2];
+	unsigned i;
+
+	/* RFC 1928: version identifier/method selection message */
+	pbuf[0] = 0x05;		/* VER: protocol version: X'05' */
+	pbuf[1] = 0x01;		/* NMETHODS: 1 */
+	pbuf[2] = 0x00;		/* METHOD: X'00' NO AUTHENTICATION REQUIRED */
+	if (write(*s, pbuf, 3) != 3) {
+	    goto report_system_err;
+	} else if (HTDoRead(*s, pbuf, 2) != 2) {
+	    goto report_system_err;
+	} else if (pbuf[0] != 0x05 || pbuf[1] != 0x00) {
+	    goto report_unexpected_reply;
+	}
+
+	/* RFC 1928: CONNECT request */
+	HTSprintf0(&line, gettext("SOCKS5: connecting to %s"), socks5_host);
+	_HTProgress(line);
+	pbuf[0] = 0x05;		/* VER: protocol version: X'05' */
+	pbuf[1] = 0x01;		/* CMD: CONNECT X'01' */
+	pbuf[2] = 0x00;		/* RESERVED */
+	pbuf[3] = 0x03;		/* ATYP: domain name */
+	pbuf[4] = (unsigned char) socks5_host_len;
+	memcpy(&pbuf[i = 5], socks5_host, socks5_host_len);
+	i += socks5_host_len;
+	/* C99 */  {
+	    unsigned short x;	/* XXX 16-bit? */
+
+	    x = htons((PortNumber) socks5_port);
+	    memcpy(&pbuf[i], (unsigned char *) &x, sizeof x);
+	    i += (unsigned) sizeof(x);
+	}
+	if ((size_t) write(*s, pbuf, i) != i) {
+	    goto report_system_err;
+	} else if ((unsigned) HTDoRead(*s, pbuf, 4) != 4) {
+	    goto report_system_err;
+	}
+	/* Version 5, reserved must be 0 */
+	if (pbuf[0] == 0x05 && pbuf[2] == 0x00) {
+	    /* Result */
+	    switch (pbuf[1]) {
+	    case 0x00:
+		emsg = NULL;
+		break;
+	    case 0x01:
+		emsg = gettext("SOCKS server failure");
+		break;
+	    case 0x02:
+		emsg = gettext("connection not allowed by ruleset");
+		break;
+	    case 0x03:
+		emsg = gettext("network unreachable");
+		break;
+	    case 0x04:
+		emsg = gettext("host unreachable");
+		break;
+	    case 0x05:
+		emsg = gettext("connection refused");
+		break;
+	    case 0x06:
+		emsg = gettext("TTL expired");
+		break;
+	    case 0x07:
+		emsg = gettext("command not supported");
+		break;
+	    case 0x08:
+		emsg = gettext("address type not supported");
+		break;
+	    default:
+		emsg = gettext("unknown SOCKS error code");
+		break;
+	    }
+	    if (emsg != NULL) {
+		goto report_no_connection;
+	    }
+	} else {
+	    goto report_unexpected_reply;
+	}
+
+	/* Address type variable; read the BND.PORT with it.
+	 * This is actually false since RFC 1928 says that the BND.ADDR reply
+	 * to CONNECT contains the IP address, so only 0x01 and 0x04 are
+	 * allowed */
+	switch (pbuf[3]) {
+	case 0x01:
+	    i = 4;
+	    break;
+	case 0x03:
+	    i = 1;
+	    break;
+	case 0x04:
+	    i = 16;
+	    break;
+	default:
+	    goto report_unexpected_reply;
+	}
+	i += (unsigned) sizeof(unsigned short);
+
+	if ((size_t) HTDoRead(*s, pbuf, i) != i) {
+	    goto report_system_err;
+	} else if (i == 1 + sizeof(unsigned short)) {
+	    i = pbuf[0];
+	    if ((size_t) HTDoRead(*s, pbuf, i) != i) {
+		goto report_system_err;
+	    }
+	}
+    }
+    goto cleanup;
+
+  report_system_err:
+    emsg = LYStrerror(errno);
+    goto report_no_connection;
+
+  report_unexpected_reply:
+    emsg = gettext("unexpected reply\n");
+    /* FALLTHRU */
+
+  report_no_connection:
+    status = HT_NO_CONNECTION;
+    /* FALLTHRU */
+
+  report_error:
+    HTAlert(emsg);
+    if (*s != -1) {
+	NETCLOSE(*s);
+    }
+
+  cleanup:
+    if (socks5_proxy != NULL) {
+	FREE(socks5_new_url);
+	FREE(socks5_protocol);
+	FREE(socks5_host);
+    }
+    FREE(host);
+    FREE(line);
     return status;
 }
 
 /*
- *  This is so interruptible reads can be implemented cleanly.
+ *  This is interruptible so reads can be implemented cleanly.
  */
 int HTDoRead(int fildes,
 	     void *buf,
@@ -2257,7 +2481,7 @@ int HTDoRead(int fildes,
 	do {
 	    set_timeout(&select_timeout);
 	    FD_ZERO(&readfds);
-	    FD_SET((unsigned) fildes, &readfds);
+	    FD_SET((LYNX_FD) fildes, &readfds);
 #ifdef SOCKS
 	    if (socks_flag)
 		ret = Rselect(fildes + 1,

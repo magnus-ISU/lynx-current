@@ -1,4 +1,4 @@
-dnl $LynxId: configure.in,v 1.268 2014/03/10 22:07:34 tom Exp $
+dnl $LynxId: configure.in,v 1.337 2021/08/01 18:50:51 tom Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl
@@ -7,8 +7,8 @@ dnl by T.E.Dickey <dickey@invisible-island.net>
 dnl and Jim Spath <jspath@mail.bcpl.lib.md.us>
 dnl
 dnl ---------------------------------------------------------------------------
-dnl Copyright 1997-2013,2014 by Thomas E. Dickey
-dnl 
+dnl Copyright 1997-2020,2021 by Thomas E. Dickey
+dnl
 dnl Permission to use, copy, modify, and distribute this software and its
 dnl documentation for any purpose and without fee is hereby granted,
 dnl provided that the above copyright notice appear in all copies and that
@@ -17,7 +17,7 @@ dnl supporting documentation, and that the name of the above listed
 dnl copyright holder(s) not be used in advertising or publicity pertaining
 dnl to distribution of the software without specific, written prior
 dnl permission.
-dnl 
+dnl
 dnl THE ABOVE LISTED COPYRIGHT HOLDER(S) DISCLAIM ALL WARRANTIES WITH REGARD
 dnl TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
 dnl AND FITNESS, IN NO EVENT SHALL THE ABOVE LISTED COPYRIGHT HOLDER(S) BE
@@ -29,7 +29,7 @@ dnl ---------------------------------------------------------------------------
 dnl
 dnl ask PRCS to plug-in the project-version for the configure-script.
 dnl $Format: "AC_REVISION($ProjectVersion$)"$
-AC_REVISION(2.8.9dev.1)
+AC_REVISION(2.9.0dev.9)
 
 # Save the original $CFLAGS so we can distinguish whether the user set those
 # in the environment, or whether autoconf added -O and -g options:
@@ -40,7 +40,7 @@ ORIGINAL_CFLAGS="$CFLAGS"
 # run to the next, as well as with tests that are order-dependent.
 rm -f config.cache
 
-AC_PREREQ(2.13.20020210)
+AC_PREREQ(2.25.20210105)
 AC_INIT(userdefs.h)
 
 # autoconf 2.5x defaults to no cache file; we need the cache file's information
@@ -64,7 +64,7 @@ AC_ARG_PROGRAM
 PACKAGE=lynx
 dnl ask PRCS to plug-in the project-version for the packages.
 # $Format: "VERSION=$ProjectVersion$"$
-VERSION=2.8.9dev.1
+VERSION=2.9.0dev.9
 
 AC_SUBST(PACKAGE)
 AC_SUBST(VERSION)
@@ -84,30 +84,32 @@ dnl Checks for location of programs
 dnl --------------------------------------------------------------------------
 
 dnl Only add to this case statement when a system has a compiler that is not
-dnl detected by AC_PROG_CC. 
-case $host_os in
-openedition)
+dnl detected by AC_PROG_CC.
+case "$host_os" in
+(openedition)
 	: ${CFLAGS="-D_ALL_SOURCE -Wl,EDIT=NO"}
 	: ${CC=c89}
 	;;
 esac
 
 CF_PROG_CC
-AC_PROG_CPP
+CF_PROG_CPP_COMMENTS
 AC_PROG_LN_S
-case $host_os in
-mingw*)
+case "$host_os" in
+(mingw*)
 LN_S="cp -p"
 AC_MSG_RESULT(Override: No symbolic links in mingw.)
 	;;
-*)
+(*)
 	;;
 esac
 AC_PROG_MAKE_SET
 AC_PROG_INSTALL
 AC_PROG_YACC
+AC_PROG_EGREP
 CF_PROG_LINT
 CF_MAKEFLAGS
+CF_MAKE_PHONY
 CF_MAKE_TAGS
 
 CF_ACVERSION_CHECK(2.52,
@@ -154,8 +156,8 @@ CF_ARG_ENABLE(debug,
 	[with_debug=no])
 AC_MSG_RESULT($with_debug)
 if test "$with_debug" = "yes" ; then
-	case $host_os in
-	ultrix*|osf*)
+	case "$host_os" in
+	(ultrix*|osf*)
 		test -z "$ORIGINAL_CFLAGS" && CF_STRIP_O_OPT(CFLAGS)
 		if test -z "$GCC" ; then
 			CFLAGS="$CFLAGS -g3"
@@ -163,12 +165,12 @@ if test "$with_debug" = "yes" ; then
 		;;
 	esac
 else
-	case $host_os in
-	osf*) #(vi
+	case "$host_os" in
+	(osf*)
 		test -z "$GCC" && CFLAGS="$CFLAGS -std1"
 		test -z "$ORIGINAL_CFLAGS" && CF_STRIP_G_OPT(CFLAGS)
 		;;
-	*)
+	(*)
 		test -z "$ORIGINAL_CFLAGS" && CF_STRIP_G_OPT(CFLAGS)
 		;;
 	esac
@@ -180,7 +182,7 @@ CF_ARG_DISABLE(trace,
 	[with_trace=$enableval],
 	[with_trace=yes])
 AC_MSG_RESULT($with_trace)
-test $with_trace = no && AC_DEFINE(NO_LYNX_TRACE,1,[Define to 1 if you want to enable lynx trace code])
+test "$with_trace" = no && AC_DEFINE(NO_LYNX_TRACE,1,[Define to 1 if you want to enable lynx trace code])
 
 AC_MSG_CHECKING(if you want verbose trace code)
 CF_ARG_ENABLE(vertrace,
@@ -188,23 +190,10 @@ CF_ARG_ENABLE(vertrace,
 	[with_vertrace=yes],
 	[with_vertrace=no])
 AC_MSG_RESULT($with_vertrace)
-test $with_vertrace = yes && AC_DEFINE(LY_TRACELINE,__LINE__,[Define to __LINE__ if you want verbose trace code])
+test "$with_vertrace" = yes && AC_DEFINE(LY_TRACELINE,__LINE__,[Define to __LINE__ if you want verbose trace code])
 
-if test -n "$GCC"
-then
-AC_MSG_CHECKING(if you want to turn on gcc warnings)
-CF_ARG_ENABLE(warnings,
-	[  --enable-warnings       GCC compiler warnings],
-	[with_warnings=yes],
-	[with_warnings=no])
-AC_MSG_RESULT($with_warnings)
-if test "$with_warnings" = "yes"
-then
-	CF_GCC_ATTRIBUTES
-	CF_GCC_WARNINGS
-fi
-fi
-
+CF_WITH_SCREEN_PDCURSES
+CF_ENABLE_WARNINGS
 CF_WITH_DBMALLOC
 CF_WITH_DMALLOC
 
@@ -217,66 +206,64 @@ AC_DEFINE(UNIX,1,[Define to 1 if we can run a configure script])
 
 dnl Only add to this case statement things that we cannot design tests for.
 TRY_CFLAGS=
-case $host_os in
-aix4*)
+case "$host_os" in
+(aix4*)
 	TRY_CFLAGS="$TRY_CFLAGS -DAIX4 -D_BSD=44 -D_AIX"
 	LIBS="$LIBS -lbsd"
 	;;
-aix*)
+(aix*)
 	TRY_CFLAGS="$TRY_CFLAGS -D_ACS_COMPAT_CODE"
 	LIBS="$LIBS -lbsd"
 	;;
-apollo*)
+(apollo*)
 	TRY_CFLAGS="$TRY_CFLAGS -D_BUILTINS -W0,-opt,4"
 	;;
-bsdi*)
+(bsdi*)
 	TRY_CFLAGS="$TRY_CFLAGS -DBSDI"
 	;;
-clix*)
+(clix*)
 	# Tested on CLIX 3.1 (T.Dickey).  The original makefile entry
 	# contributed by Alex Matulich (matuli_a@marlin.navsea.navy.mil) also
 	# references -lmalloc and -lbsd.
 	AC_CHECK_LIB(c_s,strcmp)
 	;;
-convex*)
+(convex*)
 	TRY_CFLAGS="$TRY_CFLAGS -D__STDC__ -Dunix"
 	;;
-cygwin*)
+(cygwin*)
 	TRY_CFLAGS="$TRY_CFLAGS -DWIN_EX -D_WINDOWS_NSL"
 	LIBS="$LIBS -luser32"
 	;;
-dgux*)
-	TRY_CFLAGS="$TRY_CFLAGS -DDGUX"
-	;;
-hpux*)
-	TRY_CFLAGS="$TRY_CFLAGS -DSNAKE -D_XOPEN_SOURCE_EXTENDED"
+(hpux*)
+	TRY_CFLAGS="$TRY_CFLAGS -D_XOPEN_SOURCE_EXTENDED"
 	test -z "$GCC" && TRY_CFLAGS="$TRY_CFLAGS -Wp,-H600000 -DSYS_HPUX"
 	;;
-isc*)
+(isc*)
 	# -DPOSIX_JC is necessary, else LYBookmark.c never finds out what a mode_t is.
 	TRY_CFLAGS="$TRY_CFLAGS -DISC -DPOSIX_JC"
 	LIBS="$LIBS -linet -lnsl_s -lcposix"
 	;;
-irix6.*) #(vi
+(irix6.*)
 	TRY_CFLAGS="$TRY_CFLAGS -DSYS_IRIX64"
 	;;
-irix*)
+(irix*)
 	# The original makefile used the $CFLAGS option -cckr for some form
 	# of K&R compatibility.  However, this causes compilation warnings for
 	# varargs on IRIX 5.2, and does not appear to be needed.
 	;;
-linux*)
+(linux*)
 	TRY_CFLAGS="$TRY_CFLAGS -DLINUX"
 	;;
-mingw*)
+(mingw*)
 	# put these directly in CPPFLAGS since they will not work in lynx_cfg.h
 	CF_ADD_CFLAGS(\
-		-DWIN32_LEAN_AND_MEAN \
 		-DDOSPATH \
 		-DNOSIGHUP \
 		-DNOUSERS \
+		-DWIN32_LEAN_AND_MEAN \
 		-DWIN_EX \
 		-D_CONSOLE \
+		-D_GNU_SOURCE \
 		-D_MBCS \
 		-D_WINDOWS \
 		-D_WIN_CC \
@@ -284,58 +271,58 @@ mingw*)
 	)
 	EXTRA_OBJS="$EXTRA_OBJS Xsystem\$o"
 	;;
-msdosdjgpp*)
+(msdosdjgpp*)
 	LIBS="$LIBS -lwatt"
 	TRY_CFLAGS="$TRY_CFLAGS -DDOSPATH -DNOUSERS"
 	;;
-next*)
+(next*)
 	TRY_CFLAGS="$TRY_CFLAGS -DNEXT"
 	;;
-osf4*)
+(osf4*)
 	# The -Olimit flag (see below) is no longer available with
 	# Digital C 5.2, which is bundled with Digital UNIX 4.0.
 	TRY_CFLAGS="$TRY_CFLAGS -DDSYS5 -DSYS_TRU64"
 	;;
-osf*)
+(osf*)
 	# Increase the maximum size of functions that will be optimized.
 	test -z "$GCC" && TRY_CFLAGS="$TRY_CFLAGS -O -Olimit 4000"
 	TRY_CFLAGS="$TRY_CFLAGS -DDSYS5 -DSYS_TRU64"
 	;;
-sco3.2v5*)
-	test $ac_cv_prog_gcc != yes && TRY_CFLAGS="$TRY_CFLAGS -belf"
+(sco3.2v5*)
+	test "$ac_cv_prog_gcc" != yes && TRY_CFLAGS="$TRY_CFLAGS -belf"
 	;;
-sco*)
+(sco*)
 	LIBS="$LIBS -lmalloc"
 	# It's a little late to do much, but try to warn user if he's using
 	# SCO's cc (which is reported to have broken const/volatile).
-	case "$CC" in #(vi
-	cc|*/cc)
+	case "$CC" in
+	(cc|*/cc)
 		AC_MSG_WARN(You should consider using gcc or rcc if available)
 		unset ac_cv_prog_CC
 		AC_CHECK_PROGS(CC,gcc rcc,$CC)
 		;;
 	esac
 	;;
-sequent-ptx)
+(sequent-ptx)
 	TRY_CFLAGS="$TRY_CFLAGS -DSVR4_BSDSELECT -DNO_IOCTL -DUSE_FCNTL"
 	;;
-sequent-ptx2)
+(sequent-ptx2)
 	TRY_CFLAGS="$TRY_CFLAGS -DSVR4_BSDSELECT"
 	;;
-sony-newsos*)
+(sony-newsos*)
 	TRY_CFLAGS="$TRY_CFLAGS -I/usr/sony/include"
 	AC_CHECK_HEADERS(jcurses.h)
 	;;
-svr4)
+(svr4)
 	TRY_CFLAGS="$TRY_CFLAGS -DSVR4_BSDSELECT -DSVR4"
 	;;
-sunos3*)
+(sunos3*)
 	TRY_CFLAGS="$TRY_CFLAGS -DSUN"
 	;;
-sunos4*)
+(sunos4*)
 	TRY_CFLAGS="$TRY_CFLAGS -DSUN -DSUN4"
 	;;
-ultrix*)
+(ultrix*)
 	# Increase the maximum size of functions that will be optimized.
 	test -z "$GCC" && TRY_CFLAGS="$TRY_CFLAGS -O -Olimit 600 -G 7"
 	TRY_CFLAGS="$TRY_CFLAGS -DULTRIX"
@@ -345,8 +332,8 @@ ultrix*)
 	;;
 esac
 
-case $host_os in
-mingw*)
+case "$host_os" in
+(mingw*)
 	EXTRA_OBJS="$EXTRA_OBJS LYIcon\$o"
 	;;
 esac
@@ -367,9 +354,9 @@ dnl --------------------------------------------------------------------------
 
 dnl Set of available languages (based on source distribution)
 if test -z "$ALL_LINGUAS" ; then
-	ALL_LINGUAS=`test -d $srcdir/po && cd $srcdir/po && echo *.po|sed -e 's/\.po//g' -e 's/*//'`
+	ALL_LINGUAS=`test -d "$srcdir/po" && cd "$srcdir/po" && echo *.po|sed -e 's/\.po//g' -e 's/*//'`
 	AM_PATH_PROG_WITH_TEST(MSGINIT, msginit,
-		[$ac_dir/$ac_word --no-translator --version /dev/null >/dev/null 2>&1], :)
+		["$ac_dir/$ac_word" --no-translator --version /dev/null >/dev/null 2>&1], :)
 	if test "$MSGINIT" != ":" ; then
 		CF_VERBOSE(adding en.po)
 		ALL_LINGUAS="$ALL_LINGUAS en"
@@ -398,7 +385,7 @@ CF_ARG_DISABLE(full-paths,
 	[with_full_paths=no],
 	[with_full_paths=yes])
 AC_MSG_RESULT($with_full_paths)
-test $with_full_paths = no && AC_DEFINE(USE_EXECVP,1,[Define to 1 if you want full utility pathnames])
+test "$with_full_paths" = no && AC_DEFINE(USE_EXECVP,1,[Define to 1 if you want full utility pathnames])
 
 CF_DEFINE_PROG(system mailer, SYSTEM_MAIL,
 	/usr/mmdf/bin/submit \
@@ -407,8 +394,8 @@ CF_DEFINE_PROG(system mailer, SYSTEM_MAIL,
 	)
 CF_SYSTEM_MAIL_FLAGS
 if test -n "$SYSTEM_MAIL" ; then
-if test $with_full_paths = no ; then
-	SYSTEM_MAIL=`basename $SYSTEM_MAIL`
+if test "$with_full_paths" = no ; then
+	SYSTEM_MAIL=`basename "$SYSTEM_MAIL"`
 fi
 fi
 
@@ -487,7 +474,6 @@ if test "x$cf_cv_use_libssl"  != xno ; then
 elif test "x$cf_cv_use_libgnutls" != xno ; then
     if test "x$cf_cv_gnutls_compat" = xno ; then
         CF_GNUTLS($cf_cv_use_libgnutls,tidy_tls\$o)
-		AC_CHECK_FUNCS(gnutls_priority_set_direct)
     else
         CF_GNUTLS($cf_cv_use_libgnutls)
     fi
@@ -514,59 +500,61 @@ AC_ARG_WITH(screen,
 [  --with-screen=XXX       select screen type (XXX is curses (default),
                           ncurses, ncursesw, pdcurses or slang)],
 	[
-case $withval in
-curses|ncurses|ncursesw|pdcurses|slang)
+case "$withval" in
+(curses|ncurses*|pdcurses|slang)
 	cf_cv_screen=$withval
 	;;
-*)	AC_ERROR(Unexpected value)
+(*)	AC_ERROR(Unexpected value $withval)
 	;;
 esac],
 	[cf_cv_screen=curses])])
 
-case $cf_cv_screen in
-curses|ncurses*)
+case "$cf_cv_screen" in
+(curses|ncurses*)
 	CF_WITH_CURSES_DIR
 	;;
 esac
 
 cf_wide_curses=no
 dft_color_style=yes
-case $cf_cv_screen in
-curses)
+case "$cf_cv_screen" in
+(curses)
 	CF_CURSES_CONFIG
 	CF_CURS_PERFORMANCE
 	CF_CURS_TOUCHLINE
 	;;
-ncurses)
-	CF_NCURSES_CONFIG
-	;;
-ncursesw)
+(ncursesw*)
 	CF_UTF8_LIB
-	CF_NCURSES_CONFIG(ncursesw)
+	CF_NCURSES_CONFIG($cf_cv_screen)
 	cf_wide_curses=yes
 	;;
-pdcurses)
-	case $host_os in
-	mingw*)
+(ncurses*)
+	CF_NCURSES_CONFIG($cf_cv_screen)
+	;;
+(pdcurses)
+	case "$host_os" in
+	(mingw*)
 		cf_cv_ncurses_header=curses.h
 		;;
-	*) #(vi
+	(*)
 		cf_cv_ncurses_header=xcurses.h
 		# do this last, since it changes definition of main: CF_PDCURSES_X11
 		;;
 	esac
 	;;
-slang)
+(slang)
 	CF_SLANG_UNIX_DEFS
 	dft_color_style=no
 	;;
 esac
 
+CF_TRY_RPATH
+
 CF_CURSES_CHTYPE
 
 AC_MSG_CHECKING(if you want the wide-curses features)
-CF_ARG_ENABLE(widec, 
-[  --enable-widec          enable wide-curses features], 
+CF_ARG_ENABLE(widec,
+[  --enable-widec          enable wide-curses features],
 	[use_wide_curses=$enableval],
 	[use_wide_curses=$cf_wide_curses])
 AC_MSG_RESULT($use_wide_curses)
@@ -577,12 +565,12 @@ CF_ARG_DISABLE(color-style,
 	[use_color_style=$enableval],
 	[use_color_style=$dft_color_style])
 
-case $use_color_style in
-no)
+case "$use_color_style" in
+(no)
 	AC_MSG_RESULT(no)
 	INSTALL_LSS=
 	;;
-*)
+(*)
 	AC_DEFINE(USE_COLOR_STYLE,1,[Define to 1 if we should enable color-style])
 	AC_MSG_RESULT(yes)
 
@@ -634,7 +622,7 @@ $sysconfdir)
 
 AC_MSG_RESULT($LYNX_CFG_PATH)
 
-test -z "$LYNX_CFG_PATH" && `echo "$LYNX_CFG_FILE" | sed -e 's%/[[^/]]*$%%'`
+test -z "$LYNX_CFG_PATH" && LYNX_CFG_PATH="`echo "$LYNX_CFG_FILE" | sed -e 's%/[[^/]]*$%%'`"
 test "x$LYNX_CFG_PATH" = xno && LYNX_CFG_PATH=
 AC_DEFINE_UNQUOTED(LYNX_CFG_PATH,"$LYNX_CFG_PATH",[Define to default path for Lynx config-files])
 
@@ -647,10 +635,14 @@ CF_ARG_ENABLE(htmlized-cfg,
 AC_MSG_RESULT($use_htmlized_cfg)
 
 LYNXCFG_MAKE=''
-if test $use_htmlized_cfg = no ; then
+LYNXCFG_NO_MAKE=''
+if test "$use_htmlized_cfg" = no ; then
 	LYNXCFG_MAKE='#'
+else
+	LYNXCFG_NO_MAKE='#'
 fi
 AC_SUBST(LYNXCFG_MAKE)
+AC_SUBST(LYNXCFG_NO_MAKE)
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if local doc directory should be linked to help page)
@@ -661,7 +653,7 @@ CF_ARG_ENABLE(local-docs,
 AC_MSG_RESULT($use_local_docs)
 
 LYNXDOC_MAKE=''
-if test $use_local_docs = no ; then
+if test "$use_local_docs" = no ; then
 	LYNXDOC_MAKE='#'
 fi
 AC_SUBST(LYNXDOC_MAKE)
@@ -684,7 +676,7 @@ CF_ARG_DISABLE(locale-charset,
 	[use_locale_charset=$enableval],
 	[use_locale_charset=yes])
 AC_MSG_RESULT($use_locale_charset)
-test $use_locale_charset != no && AC_DEFINE(USE_LOCALE_CHARSET,1,[Define to 1 if locale-charset selection logic should be used])
+test "$use_locale_charset" != no && AC_DEFINE(USE_LOCALE_CHARSET,1,[Define to 1 if locale-charset selection logic should be used])
 
 dnl --------------------------------------------------------------------------
 dnl Check for subsets of compiled-in tables.
@@ -708,13 +700,13 @@ if test -n "$cf_charsets" ; then
 	if test "$cf_charsets" = "minimal" ; then
 		CF_VERBOSE(using minimal list of charsets: $cf_min_charsets)
 	fi
-	cf_charsets=`echo $cf_charsets | sed -e "s/minimal/$cf_min_charsets/g" -e 's/,/ /g'`
+	cf_charsets=`echo "$cf_charsets" | sed -e "s/minimal/$cf_min_charsets/g" -e 's/,/ /g'`
 	for cf_charset in $cf_charsets
 	do
-		cf_def_charset=`echo $cf_charset | sed -e 's/+/_/g' -e 's/-/_/g'`
+		cf_def_charset=`echo "$cf_charset" | sed -e 's/+/_/g' -e 's/-/_/g'`
 		cf_use_charset=no
 		# check charsets that are defined via .tbl files
-		if ( egrep '^M'$cf_charset'$' $srcdir/src/chrtrans/*.tbl 2>/dev/null >/dev/null )
+		if ( ${EGREP-egrep} '^M'"$cf_charset"'$' "$srcdir"/src/chrtrans/*.tbl 2>/dev/null >/dev/null )
 		then
 			cf_use_charset=yes
 		# check charsets that are "built-in"
@@ -728,7 +720,7 @@ if test -n "$cf_charsets" ; then
 				fi
 			done
 		fi
-		if test $cf_use_charset=yes
+		if test "$cf_use_charset" = yes
 		then
 			CF_VERBOSE(found $cf_charset)
 			CHARSET_DEFS="-DNO_CHARSET_${cf_def_charset}=0 $CHARSET_DEFS"
@@ -765,6 +757,7 @@ AC_CHECK_HEADERS( \
 	termios.h \
 	unistd.h \
 	vfork.h \
+	wchar.h \
 )
 CF_TERMIO_AND_TERMIOS
 CF_FUNC_SIGACTION
@@ -785,6 +778,7 @@ CF_TM_GMTOFF
 CF_CHECK_SIZEOF(int,4)
 CF_CHECK_SIZEOF(long,4)
 CF_CHECK_SIZEOF(off_t,4)
+CF_CHECK_SIZEOF(size_t,4)
 CF_CHECK_SIZEOF(time_t,4)
 AC_CHECK_TYPE(intptr_t, long)
 
@@ -797,6 +791,7 @@ AC_FUNC_VFORK
 CF_FIONBIO
 CF_REMOVE_BROKEN
 CF_FUNC_LSTAT
+CF_FUNC_VASPRINTF
 AC_CHECK_FUNCS( \
 	atoll \
 	ctermid \
@@ -806,23 +801,24 @@ AC_CHECK_FUNCS( \
 	getgroups \
 	gettimeofday \
 	getuid \
-	mktemp \
-	mkdtemp \
 	popen \
 	putenv \
 	readdir \
 	setuid \
-	strerror \
 	truncate \
 	ttyname \
 	unsetenv \
-	sleep usleep \
-	vasprintf \
+	sleep \
+	usleep \
 	waitpid \
+)
+AC_CHECK_FUNCS( \
+	mkdtemp,,[AC_CHECK_FUNCS(mktemp)]
 )
 AC_REPLACE_FUNCS( \
 	mktime \
 	strstr \
+	wcwidth \
 )
 
 CF_SRAND(lynx_)
@@ -848,7 +844,7 @@ CF_ERRNO
 CF_SET_ERRNO
 CF_LOCALE
 CF_NGROUPS
-CF_SYS_ERRLIST
+AC_CHECK_FUNCS(strerror,,[CF_SYS_ERRLIST])
 CF_UTMP
 CF_CHECK_EXTERN_DATA(h_errno,int)
 
@@ -868,7 +864,7 @@ CF_ARG_DISABLE(bibp-urls,
 	[use_bibp_urls=$enableval],
 	[use_bibp_urls=yes])
 AC_MSG_RESULT($use_bibp_urls)
-test $use_bibp_urls = no && AC_DEFINE(DISABLE_BIBP,1,[Define to 1 if bibp: URLs should be supported])
+test "$use_bibp_urls" = no && AC_DEFINE(DISABLE_BIBP,1,[Define to 1 if bibp: URLs should be supported])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if configuration info should be browsable)
@@ -877,7 +873,7 @@ CF_ARG_DISABLE(config-info,
 	[use_config_info=$enableval],
 	[use_config_info=yes])
 AC_MSG_RESULT($use_config_info)
-test $use_config_info = no && AC_DEFINE(NO_CONFIG_INFO,1,[Define to 1 if configuration info should be browsable])
+test "$use_config_info" = no && AC_DEFINE(NO_CONFIG_INFO,1,[Define to 1 if configuration info should be browsable])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if new-style forms-based options screen should be used)
@@ -886,7 +882,7 @@ CF_ARG_DISABLE(forms-options,
 	[use_forms_options=$enableval],
 	[use_forms_options=yes])
 AC_MSG_RESULT($use_forms_options)
-test $use_forms_options = no && AC_DEFINE(NO_OPTION_FORMS,1,[Define to 1 if new-style forms-based options screen should be used])
+test "$use_forms_options" = no && AC_DEFINE(NO_OPTION_FORMS,1,[Define to 1 if new-style forms-based options screen should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if old-style options menu should be used)
@@ -895,7 +891,7 @@ CF_ARG_DISABLE(menu-options,
 	[use_menu_options=$enableval],
 	[use_menu_options=yes])
 AC_MSG_RESULT($use_menu_options)
-test $use_menu_options = no && AC_DEFINE(NO_OPTION_MENU,1,[Define to 1 if old-style options menu should be used])
+test "$use_menu_options" = no && AC_DEFINE(NO_OPTION_MENU,1,[Define to 1 if old-style options menu should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if sessions code should be used)
@@ -904,7 +900,7 @@ CF_ARG_DISABLE(sessions,
 	[use_sessions=$enableval],
 	[use_sessions=yes])
 AC_MSG_RESULT($use_sessions)
-if test $use_sessions != no ; then
+if test "$use_sessions" != no ; then
 	AC_DEFINE(USE_SESSIONS,1,[Define to 1 if sessions code should be used])
 	EXTRA_OBJS="$EXTRA_OBJS LYSession\$o"
 fi
@@ -916,7 +912,7 @@ CF_ARG_DISABLE(session-cache,
 	[use_session_cache=$enableval],
 	[use_session_cache=yes])
 AC_MSG_RESULT($use_session_cache)
-if test $use_session_cache != no ; then
+if test "$use_session_cache" != no ; then
     AC_DEFINE(USE_CACHEJAR,1,[Define to 1 if session-caching code should be used])
 fi
 
@@ -927,40 +923,76 @@ CF_ARG_DISABLE(addrlist-page,
 	[use_addrlist_page=$enableval],
 	[use_addrlist_page=yes])
 AC_MSG_RESULT($use_addrlist_page)
-test $use_addrlist_page != no && AC_DEFINE(USE_ADDRLIST_PAGE,1,[Define to 1 if address-list page should be used])
+test "$use_addrlist_page" != no && AC_DEFINE(USE_ADDRLIST_PAGE,1,[Define to 1 if address-list page should be used])
 
 dnl --------------------------------------------------------------------------
-AC_MSG_CHECKING(if experimental CJK logic should be used)
-CF_ARG_ENABLE(cjk,
-[  --enable-cjk            use experimental CJK logic],
+AC_MSG_CHECKING(if support for CJK should be used)
+CF_ARG_DISABLE(cjk,
+[  --disable-cjk           do not use CJK logic],
 	[use_cjk=$enableval],
-	[use_cjk=no])
+	[use_cjk=yes])
 AC_MSG_RESULT($use_cjk)
-test $use_cjk != no && AC_DEFINE(CJK_EX,1,[Define to 1 if experimental CJK logic should be used])
+test "$use_cjk" != no && AC_DEFINE(CJK_EX,1,[Define to 1 if CJK logic should be used])
+
+use_cjk_utf8=no
+
+AM_ICONV
+if test "x$am_cv_func_iconv" = "xyes"
+then
 
 dnl --------------------------------------------------------------------------
-AC_MSG_CHECKING(if experimental Japanese UTF-8 logic should be used)
-CF_ARG_ENABLE(japanese-utf8,
-[  --enable-japanese-utf8  use experimental Japanese UTF-8 logic],
+AC_MSG_CHECKING(if experimental support for Chinese UTF-8 should be used)
+CF_ARG_ENABLE(chinese-utf8,
+[  --enable-chinese-utf8   use Chinese UTF-8 logic],
+	[use_cn_utf8=$enableval],
+	[use_cn_utf8=yes])
+AC_MSG_RESULT($use_cn_utf8)
+if test "$use_cn_utf8" != no ; then
+	AC_DEFINE(EXP_CHINESEUTF8_SUPPORT,1,[Define to 1 if Chinese UTF-8 logic should be used])
+	use_cjk_utf8=yes
+fi
+
+dnl --------------------------------------------------------------------------
+AC_MSG_CHECKING(if support for Japanese UTF-8 should be used)
+CF_ARG_DISABLE(japanese-utf8,
+[  --disable-japanese-utf8 do not use Japanese UTF-8 logic],
 	[use_ja_utf8=$enableval],
-	[use_ja_utf8=no])
+	[use_ja_utf8=yes])
 AC_MSG_RESULT($use_ja_utf8)
-if test $use_ja_utf8 != no ; then
-	AC_DEFINE(EXP_JAPANESEUTF8_SUPPORT,1,[Define to 1 if experimental Japanese UTF-8 logic should be used])
-	AM_ICONV
+if test "$use_ja_utf8" != no ; then
+	AC_DEFINE(USE_JAPANESEUTF8_SUPPORT,1,[Define to 1 if Japanese UTF-8 logic should be used])
+	use_cjk_utf8=yes
+fi
+
+dnl --------------------------------------------------------------------------
+if test $use_cjk_utf8 = yes
+then
 	if test "$USE_NLS" != yes ; then
 	  LIBS="$LIBICONV $LIBS"
 	fi
 fi
 
+else
+	CF_VERBOSE(skipping CJK features which depend on iconv)
+fi
+
+dnl --------------------------------------------------------------------------
+AC_MSG_CHECKING(if experimental wcwidth/UTF-8 logic should be used)
+CF_ARG_ENABLE(wcwidth-support,
+[  --enable-wcwidth-support use experimental wcwidth/UTF-8 logic],
+	[use_wcwidth=$enableval],
+	[use_wcwidth=no])
+AC_MSG_RESULT($use_wcwidth)
+test "$use_wcwidth" != no && AC_DEFINE(EXP_WCWIDTH_SUPPORT,1,[Define to 1 if experimental wcwidth/UTF-8 logic should be used])
+
+dnl --------------------------------------------------------------------------
 use_dft_colors=no
-case $cf_cv_screen in
-curses|slang|ncurses*)
+case "$cf_cv_screen" in
+(curses|slang|ncurses*)
 	use_dft_colors=maybe
 	;;
 esac
 
-dnl --------------------------------------------------------------------------
 if test "$use_dft_colors" != no ; then
 AC_MSG_CHECKING(if you want to use default-colors)
 CF_ARG_ENABLE(default-colors,
@@ -968,7 +1000,7 @@ CF_ARG_ENABLE(default-colors,
 	[use_dft_colors=yes],
 	[use_dft_colors=no])
 AC_MSG_RESULT($use_dft_colors)
-test $use_dft_colors = "yes" && AC_DEFINE(USE_DEFAULT_COLORS,1,[Define to 1 if you want to use default-colors])
+test "$use_dft_colors" = "yes" && AC_DEFINE(USE_DEFAULT_COLORS,1,[Define to 1 if you want to use default-colors])
 fi
 
 dnl --------------------------------------------------------------------------
@@ -978,7 +1010,7 @@ CF_ARG_ENABLE(kbd-layout,
 	[use_kbd_layout=$enableval],
 	[use_kbd_layout=no])
 AC_MSG_RESULT($use_kbd_layout)
-test $use_kbd_layout != no && AC_DEFINE(EXP_KEYBOARD_LAYOUT,1,[Define to 1 if experimental keyboard-layout logic should be used])
+test "$use_kbd_layout" != no && AC_DEFINE(EXP_KEYBOARD_LAYOUT,1,[Define to 1 if experimental keyboard-layout logic should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if experimental nested-table logic should be used)
@@ -987,7 +1019,7 @@ CF_ARG_ENABLE(nested-tables,
 	[use_nested_tables=$enableval],
 	[use_nested_tables=no])
 AC_MSG_RESULT($use_nested_tables)
-test $use_nested_tables != no && AC_DEFINE(EXP_NESTED_TABLES,1,[Define to 1 if experimental nested-table logic should be used])
+test "$use_nested_tables" != no && AC_DEFINE(EXP_NESTED_TABLES,1,[Define to 1 if experimental nested-table logic should be used])
 
 dnl --------------------------------------------------------------------------
 dnl Miscellaneous options that don't need to test system features
@@ -1003,7 +1035,7 @@ CF_ARG_DISABLE(alt-bindings,
 	[use_alt_bindings=$enableval],
 	[use_alt_bindings=yes])
 AC_MSG_RESULT($use_alt_bindings)
-test $use_alt_bindings != no && AC_DEFINE(USE_ALT_BINDINGS,1,[Define to 1 if alternative line-edit bindings should be used])
+test "$use_alt_bindings" != no && AC_DEFINE(USE_ALT_BINDINGS,1,[Define to 1 if alternative line-edit bindings should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if ascii case-conversion should be used)
@@ -1012,7 +1044,7 @@ CF_ARG_DISABLE(ascii-ctypes,
 	[use_ascii_ctypes=$enableval],
 	[use_ascii_ctypes=yes])
 AC_MSG_RESULT($use_ascii_ctypes)
-test $use_ascii_ctypes != no && AC_DEFINE(USE_ASCII_CTYPES,1,[Define to 1 if ascii case-conversion should be used])
+test "$use_ascii_ctypes" != no && AC_DEFINE(USE_ASCII_CTYPES,1,[Define to 1 if ascii case-conversion should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want to use extended HTML DTD logic)
@@ -1021,7 +1053,7 @@ CF_ARG_DISABLE(extended-dtd,
 	[use_ext_htmldtd=no],
 	[use_ext_htmldtd=yes])
 AC_MSG_RESULT($use_ext_htmldtd)
-test $use_ext_htmldtd = "no" && AC_DEFINE(NO_EXTENDED_HTMLDTD,1,[Define to 1 if you want to use extended HTML DTD logic])
+test "$use_ext_htmldtd" = "no" && AC_DEFINE(NO_EXTENDED_HTMLDTD,1,[Define to 1 if you want to use extended HTML DTD logic])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if file-upload logic should be used)
@@ -1030,7 +1062,7 @@ CF_ARG_DISABLE(file-upload,
 	[use_file_upload=$enableval],
 	[use_file_upload=yes])
 AC_MSG_RESULT($use_file_upload)
-test $use_file_upload != no && AC_DEFINE(USE_FILE_UPLOAD,1,[Define to 1 if file-upload logic should be used])
+test "$use_file_upload" != no && AC_DEFINE(USE_FILE_UPLOAD,1,[Define to 1 if file-upload logic should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if IDNA support should be used)
@@ -1051,7 +1083,7 @@ CF_ARG_DISABLE(justify-elts,
 	[use_justify_elts=$enableval],
 	[use_justify_elts=yes])
 AC_MSG_RESULT($use_justify_elts)
-test $use_justify_elts != no && AC_DEFINE(USE_JUSTIFY_ELTS,1,[Define to 1 if element-justification logic should be used])
+test "$use_justify_elts" != no && AC_DEFINE(USE_JUSTIFY_ELTS,1,[Define to 1 if element-justification logic should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if partial-display should be used)
@@ -1060,7 +1092,7 @@ CF_ARG_DISABLE(partial,
 	[use_partial_display=$enableval],
 	[use_partial_display=yes])
 AC_MSG_RESULT($use_partial_display)
-test $use_partial_display != no && AC_DEFINE(DISP_PARTIAL,1,[Define to 1 if partial-display should be used])
+test "$use_partial_display" != no && AC_DEFINE(DISP_PARTIAL,1,[Define to 1 if partial-display should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if persistent-cookie logic should be used)
@@ -1069,7 +1101,7 @@ CF_ARG_DISABLE(persistent-cookies,
 	[use_filed_cookies=$enableval],
 	[use_filed_cookies=yes])
 AC_MSG_RESULT($use_filed_cookies)
-test $use_filed_cookies != no && AC_DEFINE(USE_PERSISTENT_COOKIES,1,[Define to 1 if persistent-cookie logic should be used])
+test "$use_filed_cookies" != no && AC_DEFINE(USE_PERSISTENT_COOKIES,1,[Define to 1 if persistent-cookie logic should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if html source should be colorized)
@@ -1078,7 +1110,7 @@ CF_ARG_DISABLE(prettysrc,
 	[use_prettysrc=$enableval],
 	[use_prettysrc=yes])
 AC_MSG_RESULT($use_prettysrc)
-test $use_prettysrc != no && AC_DEFINE(USE_PRETTYSRC,1,[Define to 1 if html source should be colorized])
+test "$use_prettysrc" != no && AC_DEFINE(USE_PRETTYSRC,1,[Define to 1 if html source should be colorized])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if progress-bar code should be used)
@@ -1087,7 +1119,7 @@ CF_ARG_DISABLE(progressbar,
 	[use_progressbar=$enableval],
 	[use_progressbar=yes])
 AC_MSG_RESULT($use_progressbar)
-test $use_progressbar != no && AC_DEFINE(USE_PROGRESSBAR,1,[Define to 1 if progress-bar code should be used])
+test "$use_progressbar" != no && AC_DEFINE(USE_PROGRESSBAR,1,[Define to 1 if progress-bar code should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if read-progress message should show ETA)
@@ -1096,7 +1128,7 @@ CF_ARG_DISABLE(read-eta,
 	[use_read_eta=$enableval],
 	[use_read_eta=yes])
 AC_MSG_RESULT($use_read_eta)
-test $use_read_eta != no && AC_DEFINE(USE_READPROGRESS,1,[Define to 1 if read-progress message should show ETA])
+test "$use_read_eta" != no && AC_DEFINE(USE_READPROGRESS,1,[Define to 1 if read-progress message should show ETA])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if source caching should be used)
@@ -1105,7 +1137,7 @@ CF_ARG_DISABLE(source-cache,
 	[use_source_cache=$enableval],
 	[use_source_cache=yes])
 AC_MSG_RESULT($use_source_cache)
-test $use_source_cache != no && AC_DEFINE(USE_SOURCE_CACHE,1,[Define to 1 if source caching should be used])
+test "$use_source_cache" != no && AC_DEFINE(USE_SOURCE_CACHE,1,[Define to 1 if source caching should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if scrollbar code should be used)
@@ -1122,7 +1154,7 @@ CF_ARG_ENABLE(charset-choice,
 	[use_charset_choice=$enableval],
 	[use_charset_choice=no])
 AC_MSG_RESULT($use_charset_choice)
-test $use_charset_choice != no && AC_DEFINE(USE_CHARSET_CHOICE,1,[Define to 1 if charset-selection logic should be used])
+test "$use_charset_choice" != no && AC_DEFINE(USE_CHARSET_CHOICE,1,[Define to 1 if charset-selection logic should be used])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want to use external commands)
@@ -1131,7 +1163,7 @@ CF_ARG_ENABLE(externs,
 	[use_externs=yes],
 	[use_externs=no])
 AC_MSG_RESULT($use_externs)
-if test $use_externs != "no" ; then
+if test "$use_externs" != "no" ; then
 	AC_DEFINE(USE_EXTERNALS,1,[Define to 1 if you want to use external commands])
 	EXTRA_OBJS="$EXTRA_OBJS LYExtern\$o"
 fi
@@ -1143,16 +1175,16 @@ CF_ARG_ENABLE(font-switch,
 	[use_setfont=yes],
 	[use_setfont=no])
 AC_MSG_RESULT($use_setfont)
-if test $use_setfont = yes ; then
-	case $host_os in
-	linux*)
+if test "$use_setfont" = yes ; then
+	case "$host_os" in
+	(linux*)
 		CF_PATH_PROG(SETFONT, consolechars, setfont)
 		;;
-	os2*)
+	(os2*)
 		SETFONT=built-in
 		CF_VERBOSE(Assume $host_os has font-switching)
 		;;
-	*)
+	(*)
 		SETFONT=unknown
 		CF_VERBOSE(Assume $host_os has no font-switching)
 		;;
@@ -1178,7 +1210,7 @@ CF_ARG_ENABLE(change-exec,
 	[use_change_exec=yes],
 	[use_change_exec=no])
 AC_MSG_RESULT($use_change_exec)
-test $use_change_exec = yes && AC_DEFINE(ENABLE_OPTS_CHANGE_EXEC,1,[Define to 1 if you want change-exec support])
+test "$use_change_exec" = yes && AC_DEFINE(ENABLE_OPTS_CHANGE_EXEC,1,[Define to 1 if you want change-exec support])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want exec-links support)
@@ -1188,7 +1220,7 @@ CF_ARG_OPTION(exec-links,
 	[use_exec_links=$enableval],
 	[$use_change_exec])
 AC_MSG_RESULT($use_exec_links)
-test $use_exec_links = yes && AC_DEFINE(EXEC_LINKS,1,[Define to 1 if you want exec-links support])
+test "$use_exec_links" = yes && AC_DEFINE(EXEC_LINKS,1,[Define to 1 if you want exec-links support])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want exec-scripts support)
@@ -1198,7 +1230,7 @@ CF_ARG_OPTION(exec-scripts,
 	[use_exec_scripts=$enableval],
 	[$use_change_exec])
 AC_MSG_RESULT($use_exec_scripts)
-test $use_exec_scripts = yes && AC_DEFINE(EXEC_SCRIPTS,1,[Define to 1 if you want exec-scripts support])
+test "$use_exec_scripts" = yes && AC_DEFINE(EXEC_SCRIPTS,1,[Define to 1 if you want exec-scripts support])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want internal-links feature)
@@ -1207,7 +1239,7 @@ CF_ARG_ENABLE(internal-links,
 	[use_internal_links=yes],
 	[use_internal_links=no])
 AC_MSG_RESULT($use_internal_links)
-test $use_internal_links = yes && AC_DEFINE(TRACK_INTERNAL_LINKS,1,[Define to 1 if you want internal-links feature])
+test "$use_internal_links" = yes && AC_DEFINE(TRACK_INTERNAL_LINKS,1,[Define to 1 if you want internal-links feature])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want to fork NSL requests)
@@ -1216,12 +1248,12 @@ CF_ARG_ENABLE(nsl-fork,
 	[use_nsl_fork=yes],
 	[use_nsl_fork=no])
 AC_MSG_RESULT($use_nsl_fork)
-if test $use_nsl_fork = yes ; then
-	case $host_os in
-	mingw*)
+if test "$use_nsl_fork" = yes ; then
+	case "$host_os" in
+	(mingw*)
 		AC_DEFINE(_WINDOWS_NSL,1,[Define to 1 if we want NSL-fork with Windows])
 		;;
-	*)
+	(*)
 		AC_DEFINE(NSL_FORK,1,[Define to 1 if we want NSL-fork])
 		;;
 	esac
@@ -1234,7 +1266,7 @@ CF_ARG_ENABLE(syslog,
 	[use_syslog=yes],
 	[use_syslog=no])
 AC_MSG_RESULT($use_syslog)
-test $use_syslog = yes && AC_DEFINE(SYSLOG_REQUESTED_URLS,1,[Define to 1 if you want to log URL requests via syslog])
+test "$use_syslog" = yes && AC_DEFINE(SYSLOG_REQUESTED_URLS,1,[Define to 1 if you want to log URL requests via syslog])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want to underline links)
@@ -1243,8 +1275,8 @@ CF_ARG_ENABLE(underlines,
 	[use_underline=yes],
 	[use_underline=no])
 AC_MSG_RESULT($use_underline)
-test $use_underline = yes && AC_DEFINE(UNDERLINE_LINKS,1,[Define to 1 if xxx])
-test $use_underline = no  && AC_DEFINE(UNDERLINE_LINKS,0,[Define to 0 if xxx])
+test "$use_underline" = yes && AC_DEFINE(UNDERLINE_LINKS,1,[Define to 1 if xxx])
+test "$use_underline" = no  && AC_DEFINE(UNDERLINE_LINKS,0,[Define to 0 if xxx])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if help files should be gzip'ed)
@@ -1291,7 +1323,7 @@ CF_ARG_DISABLE(finger,
 	[use_finger=yes],
 	[use_finger=no])
 AC_MSG_RESULT($use_finger)
-test $use_finger != "no" && AC_DEFINE(DISABLE_FINGER,1,[Define to 1 if you want to exclude FINGER code])
+test "$use_finger" != "no" && AC_DEFINE(DISABLE_FINGER,1,[Define to 1 if you want to exclude FINGER code])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want to exclude GOPHER code)
@@ -1300,7 +1332,7 @@ CF_ARG_DISABLE(gopher,
 	[use_gopher=yes],
 	[use_gopher=no])
 AC_MSG_RESULT($use_gopher)
-test $use_gopher != "no" && AC_DEFINE(DISABLE_GOPHER,1,[Define to 1 if you want to exclude GOPHER code])
+test "$use_gopher" != "no" && AC_DEFINE(DISABLE_GOPHER,1,[Define to 1 if you want to exclude GOPHER code])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want to exclude NEWS code)
@@ -1309,7 +1341,7 @@ CF_ARG_DISABLE(news,
       [use_news=yes],
       [use_news=no])
 AC_MSG_RESULT($use_news)
-test $use_news != "no" && AC_DEFINE(DISABLE_NEWS,1,[Define to 1 if you want to exclude NEWS code])
+test "$use_news" != "no" && AC_DEFINE(DISABLE_NEWS,1,[Define to 1 if you want to exclude NEWS code])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want to exclude FTP code)
@@ -1318,7 +1350,7 @@ CF_ARG_DISABLE(ftp,
       [use_ftp=yes],
       [use_ftp=no])
 AC_MSG_RESULT($use_ftp)
-test $use_ftp != "no" && AC_DEFINE(DISABLE_FTP,1,[Define to 1 if you want to exclude FTP code])
+test "$use_ftp" != "no" && AC_DEFINE(DISABLE_FTP,1,[Define to 1 if you want to exclude FTP code])
 
 dnl --------------------------------------------------------------------------
 AC_MSG_CHECKING(if you want to include WAIS code)
@@ -1329,7 +1361,7 @@ CF_ARG_ENABLE(wais,
 AC_MSG_RESULT($use_wais)
 
 MAKE_WAIS="#"
-if test $use_wais != "no"
+if test "$use_wais" != "no"
 then
 	AC_CHECK_LIB(wais,fs_free,[
 		CF_MATH_LIB
@@ -1449,10 +1481,10 @@ CF_PATH_PROG(ZIP,	zip)
 dnl 'INSTALL' is a special case, since the configure script has to find a
 dnl BSD-compatible one so the build/install works properly.
 case "$INSTALL" in
-$srcdir*) # (vi
+($srcdir*)
 	AC_DEFINE_UNQUOTED(INSTALL_PATH,"install")
 	;;
-*) # (vi
+(*)
 	cf_save_INSTALL="$INSTALL"
 	CF_PATH_PROG(INSTALL,	install)
 	INSTALL="$cf_save_INSTALL"
@@ -1462,20 +1494,20 @@ fi
 
 COMPRESS_PROG=
 COMPRESS_EXT=
-if test $use_gzip_help = yes ; then
-	COMPRESS_PROG="$ac_cv_path_GZIP -9"
+if test "$use_gzip_help" = yes ; then
+	COMPRESS_PROG="$ac_cv_path_GZIP -9 -n"
 	COMPRESS_EXT=.gz
 fi
 AC_SUBST(COMPRESS_PROG)
 AC_SUBST(COMPRESS_EXT)
 
-if test $cf_cv_screen = pdcurses ; then
+if test "$cf_cv_screen" = pdcurses ; then
 	CF_HELP_MESSAGE(Special Libraries for PDCurses X11:)
-	case $host_os in #(vi
-	mingw*)
+	case "$host_os" in
+	(mingw*)
 		CF_PDCURSES_W32
 		;;
-	*) #(vi
+	(*)
 		CF_PDCURSES_X11
 		;;
 	esac
@@ -1484,8 +1516,8 @@ else
 fi
 
 ### These tests must be run after establishing the curses library.
-if test $cf_cv_screen != slang ; then
-	if test $cf_cv_screen != pdcurses ; then
+if test "$cf_cv_screen" != slang ; then
+	if test "$cf_cv_screen" != pdcurses ; then
 		AC_CHECK_HEADERS($cf_cv_screen/term.h term.h)
 	fi
 	CF_ALT_CHAR_SET
@@ -1522,21 +1554,22 @@ if test $cf_cv_screen != slang ; then
 		wresize \
 		)
 	AC_CHECK_FUNCS( \
+		curses_exit \
 		_nc_free_and_exit \
 		_nc_freeall \
 		)
 fi
 
-if test $use_color_style != no ; then
+if test "$use_color_style" != no ; then
 	if test .$cf_cv_color_curses != .yes ; then
 		AC_ERROR(Configuration does not support color-styles)
 	fi
-	if test $cf_cv_screen = slang ; then
+	if test "$cf_cv_screen" = slang ; then
 		AC_ERROR(Configuration does not support color-styles)
 	fi
 fi
 
-if test $use_scrollbar != no ; then
+if test "$use_scrollbar" != no ; then
 	if test .$cf_cv_fancy_curses != .yes ; then
 		AC_MSG_WARN(Configuration does not support ACS_xxx definitions)
 	else
@@ -1547,20 +1580,25 @@ fi
 # use rpath for libraries in unusual places
 CF_DISABLE_RPATH_HACK
 
+CF_MERGE_EXTRA_CFLAGS
+
 ### Finally, build config.h and the makefiles
 test -z "$CONFIG_SHELL" && CONFIG_SHELL=/bin/sh
 AC_SUBST(CONFIG_SHELL)
 
-CFLAGS="$CFLAGS $EXTRA_CFLAGS"
 srcdir="$srcdir"
 SRCDIR_CLEAN="#"
 if test -n "$srcdir" ; then
-	echo srcdir is $srcdir
+	echo "srcdir is $srcdir"
 	mkdir -p WWW/Library/Implementation
 	mkdir -p src/chrtrans
 	test "$USE_INCLUDED_LIBINTL" = yes && mkdir -p intl
 	test "$srcdir" != "." && SRCDIR_CLEAN=""
 fi
+
+HOMEPAGE_URL="https://lynx.invisible-island.net/"
+AC_DEFINE_UNQUOTED(HOMEPAGE_URL,"$HOMEPAGE_URL",[Define to Lynx homepage URL])
+AC_SUBST(HOMEPAGE_URL)
 
 AC_SUBST(SRCDIR_CLEAN)
 AC_OUTPUT(
@@ -1572,7 +1610,7 @@ AC_OUTPUT(
 	],[
 	if test "$USE_NLS" = yes ; then
 	if test "$use_our_messages" = yes ; then
-		echo creating po/makefile
+		echo "creating po/makefile"
 		rm -f	po/temp$$
 		sed	-e 's%^.*LYMessages.c%	../LYMessages.c%' \
 			-e '$s/\\//' po/POTFILES >po/temp$$

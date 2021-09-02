@@ -1,5 +1,5 @@
 /*
- * $LynxId: UCAux.c,v 1.44 2010/11/07 21:21:09 tom Exp $
+ * $LynxId: UCAux.c,v 1.58 2021/07/01 23:34:24 tom Exp $
  */
 #include <HTUtils.h>
 
@@ -16,7 +16,7 @@ BOOL UCCanUniTranslateFrom(int from)
 {
     if (from < 0)
 	return NO;
-#ifndef EXP_JAPANESEUTF8_SUPPORT
+#ifndef USE_JAPANESEUTF8_SUPPORT
     if (LYCharSet_UC[from].enc == UCT_ENC_CJK)
 	return NO;
 #endif
@@ -31,10 +31,6 @@ BOOL UCCanTranslateUniTo(int to)
 {
     if (to < 0)
 	return NO;
-/*???
-    if (!strcmp(LYCharSet_UC[to].MIMEname, "x-transparent"))
-       return NO;
-*/
 
     return YES;			/* well at least some characters... */
 }
@@ -201,7 +197,16 @@ void UCSetTransParams(UCTransParams * pT, int cs_in,
 	/*
 	 * Set this element if we want to treat the input as CJK.  - FM
 	 */
-	pT->do_cjk = (BOOL) ((p_in->enc == UCT_ENC_CJK) && IS_CJK_TTY);
+	pT->do_cjk = (BOOL) ((p_in->enc == UCT_ENC_CJK) &&
+			     (
+				 IS_CJK_TTY
+#ifdef EXP_CHINESEUTF8_SUPPORT
+				 || !strcmp(p_in->MIMEname, "euc-cn")
+				 || !strcmp(p_in->MIMEname, "big5")
+				 || !strcmp(p_in->MIMEname, "euc-kr")
+#endif
+			     )
+	    );
 	/*
 	 * Set these elements based on whether we are dealing with UTF-8.  - FM
 	 */
@@ -213,6 +218,13 @@ void UCSetTransParams(UCTransParams * pT, int cs_in,
 	     * a CJK output (IS_CJK_TTY).  - FM
 	     */
 	    pT->trans_to_uni = FALSE;
+#ifdef EXP_CHINESEUTF8_SUPPORT
+	    if (!strcmp(p_in->MIMEname, "euc-cn") ||
+		!strcmp(p_in->MIMEname, "big5") ||
+		!strcmp(p_in->MIMEname, "euc-kr")) {
+		pT->trans_to_uni = (BOOL) UCCanUniTranslateFrom(cs_in);
+	    }
+#endif
 	    pT->do_8bitraw = FALSE;
 	    pT->pass_160_173_raw = TRUE;
 	    pT->use_raw_char_in = FALSE;	/* Not used for CJK. - KW */
@@ -292,6 +304,19 @@ void UCSetTransParams(UCTransParams * pT, int cs_in,
 					 UCCanTranslateUniTo(cs_out));
 	}
     }
+    CTRACE((tfp, "UCSetTransParams (done):\n"));
+    CTRACE((tfp, "  transp:             %d\n", pT->transp));
+    CTRACE((tfp, "  do_cjk:             %d\n", pT->do_cjk));
+    CTRACE((tfp, "  decode_utf8:        %d\n", pT->decode_utf8));
+    CTRACE((tfp, "  output_utf8:        %d\n", pT->output_utf8));
+    CTRACE((tfp, "  do_8bitraw:         %d\n", pT->do_8bitraw));
+    CTRACE((tfp, "  use_raw_char_in:    %d\n", pT->use_raw_char_in));
+    CTRACE((tfp, "  strip_raw_char_in:  %d\n", pT->strip_raw_char_in));
+    CTRACE((tfp, "  pass_160_173_raw:   %d\n", pT->pass_160_173_raw));
+    CTRACE((tfp, "  trans_to_uni:       %d\n", pT->trans_to_uni));
+    CTRACE((tfp, "  trans_C0_to_uni:    %d\n", pT->trans_C0_to_uni));
+    CTRACE((tfp, "  repl_translated_C0: %d\n", pT->repl_translated_C0));
+    CTRACE((tfp, "  trans_from_uni:     %d\n", pT->trans_from_uni));
 }
 
 /*
@@ -398,8 +423,8 @@ void UCSetBoxChars(int cset,
 				CTRACE((tfp,
 					"  map[%c] %#" PRI_UCode_t " -> %#x\n",
 					table[n].mapping,
-					table[n].internal,
-					table[n].external));
+					CAST_UCode_t (table[n].internal),
+					(unsigned)table[n].external));
 				break;
 			    }
 			}
@@ -423,7 +448,8 @@ void UCSetBoxChars(int cset,
 			CTRACE((tfp,
 				"line-drawing map %c mismatch (have %#x, want %#x)\n",
 				table[n].mapping,
-				test, table[n].external));
+				(unsigned) test,
+				(unsigned) table[n].external));
 			fix_lines = TRUE;
 			break;
 		    }
@@ -564,10 +590,10 @@ BOOL UCConvertUniToUtf8(UCode_t code, char *buffer)
  * returns the UCS value
  * returns negative value on error (invalid UTF-8 sequence)
  */
-UCode_t UCGetUniFromUtf8String(char **ppuni)
+UCode_t UCGetUniFromUtf8String(const char **ppuni)
 {
     UCode_t uc_out = 0;
-    char *p = *ppuni;
+    const char *p = *ppuni;
     int utf_count, i;
 
     if (!(**ppuni & 0x80))
@@ -626,4 +652,149 @@ UCode_t UCGetUniFromUtf8String(char **ppuni)
     }
     *ppuni = p + utf_count;
     return uc_out;
+}
+
+/*
+ * Combine UTF-8 into Unicode.  Incomplete characters are either ignored, or
+ * returned as the UCS replacement character.
+ */
+dUTF8 HTDecodeUTF8(UTFDecodeState * me, int *c_in_out, UCode_t *result)
+{
+    dUTF8 rc = dUTF8_ok;
+    int c = *c_in_out;
+    unsigned uc = UCH(c);
+
+    if (TOASCII(uc) > 127) {
+	/*
+	 * continue a multibyte character...
+	 */
+	if (me->utf_count > 0 && (TOASCII(c) & 0xc0) == 0x80) {
+	    if (me->utf_count <= 0) {
+		me->utf_char = UCS_REPL;
+	    } else if (me->utf_count == 1) {
+		int limit = (int) (me->utf_buf_p - me->utf_buf) + 1;
+		int maybe = 0;
+
+		/*
+		 * Check for overlong sequences (from comment in xterm):
+		 *   1100000x 10xxxxxx
+		 *   11100000 100xxxxx 10xxxxxx
+		 *   11110000 1000xxxx 10xxxxxx 10xxxxxx
+		 *   11111000 10000xxx 10xxxxxx 10xxxxxx 10xxxxxx
+		 *   11111100 100000xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx
+		 */
+		switch (limit) {
+		case 2:
+		    maybe = (UCH(me->utf_buf[0]) & 0xfe) == 0xc0;
+		    break;
+		case 3:
+		    maybe = ((UCH(me->utf_buf[0]) == 0xe0) &&
+			     (UCH(me->utf_buf[1]) & 0xf0) == 0x80);
+		    break;
+		case 4:
+		    maybe = ((UCH(me->utf_buf[0]) == 0xf0) &&
+			     (UCH(me->utf_buf[1]) & 0xf8) == 0x80);
+		    break;
+		case 5:
+		    maybe = ((UCH(me->utf_buf[0]) == 0xf8) &&
+			     (UCH(me->utf_buf[1]) & 0xfd) == 0x80);
+		    break;
+		}
+		if (maybe) {
+		    while (limit-- > 2) {
+			if ((UCH(me->utf_buf[limit]) & 0xc0) != 0x80) {
+			    maybe = 0;
+			    break;
+			}
+		    }
+		    if (maybe) {
+			me->utf_char = UCS_REPL;
+		    }
+		}
+	    }
+	    if (me->utf_char == UCS_REPL) {
+		rc = dUTF8_err;
+	    } else if (me->utf_char || ((uc & 0x7f) >> (7 - me->utf_count))) {
+		me->utf_char = (me->utf_char << 6) | (TOASCII(c) & 0x3f);
+		if ((me->utf_char >= 0xd800 &&
+		     me->utf_char <= 0xdfff) ||
+		    (me->utf_char == 0xfffe) ||
+		    (me->utf_char == UCS_HIDE)) {
+		    me->utf_char = UCS_REPL;
+		    rc = dUTF8_err;
+		}
+	    } else {
+		me->utf_char = UCS_REPL;
+		rc = dUTF8_err;
+	    }
+	    me->utf_count--;
+	    *(me->utf_buf_p) = (char) c;
+	    (me->utf_buf_p)++;
+
+	    if (me->utf_count == 0) {
+		*(me->utf_buf_p) = '\0';
+		*result = me->utf_char;
+		if (*result < 256) {
+		    *c_in_out = UCH(*result & 0xff);
+		}
+		switch (*result) {
+		case 0x200e:	/* left-to-right mark */
+		case 0x200f:	/* right-to-left mark */
+		    /* lynx does not use these */
+		    *result = '\0';
+		    break;
+		}
+	    } else {
+		rc = dUTF8_more;
+	    }
+	} else {
+	    /*
+	     * begin a multibyte character
+	     */
+	    rc = dUTF8_more;
+	    me->utf_buf_p = me->utf_buf;
+	    *(me->utf_buf_p) = (char) c;
+	    (me->utf_buf_p)++;
+	    if ((uc & 0xe0) == 0xc0) {
+		me->utf_count = 1;
+		me->utf_char = (uc & 0x1f);
+	    } else if ((uc & 0xf0) == 0xe0) {
+		me->utf_count = 2;
+		me->utf_char = (uc & 0x0f);
+	    } else if ((uc & 0xf8) == 0xf0) {
+		me->utf_count = 3;
+		me->utf_char = (uc & 0x07);
+	    } else if ((uc & 0xfc) == 0xf8) {
+		me->utf_count = 4;
+		me->utf_char = (uc & 0x03);
+	    } else if ((uc & 0xfe) == 0xfc) {
+		me->utf_count = 5;
+		me->utf_char = (uc & 0x01);
+	    } else {
+		me->utf_count = 0;
+		me->utf_buf_p = me->utf_buf;
+		*(me->utf_buf_p) = '\0';
+		rc = dUTF8_err;
+	    }
+	}
+    } else {
+	me->utf_count = 0;
+	me->utf_buf_p = me->utf_buf;
+	*(me->utf_buf_p) = '\0';
+    }
+
+#if 0
+    if (rc != dUTF8_ok) {
+	CTRACE((tfp, "UTF8 %#x ->%#x %s\n",
+		uc, UCH(*c_in_out),
+		(rc == dUTF8_err) ? "err" : "more"));
+    } else {
+	if (*result > 127) {
+	    CTRACE((tfp, "UTF8 %#x == %#x\n", uc, (int) *result));
+	} else if (c != UCS_REPL && !isspace(c)) {
+	    CTRACE((tfp, "CHAR %#x == %c (%#x)\n", uc, uc, (int) *result));
+	}
+    }
+#endif
+    return rc;
 }

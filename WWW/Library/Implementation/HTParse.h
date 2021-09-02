@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTParse.h,v 1.21 2010/09/24 22:45:23 tom Exp $
+ * $LynxId: HTParse.h,v 1.26 2021/07/05 20:56:50 tom Exp $
  *				HTParse:  URL parsing in the WWW Library
  *				HTPARSE
  *
@@ -17,6 +17,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define RFC_3986_UNRESERVED(c) (isalnum(UCH(c)) || strchr("-._~", UCH(c)) != 0)
+#define RFC_3986_GEN_DELIMS(c) ((c) != 0 && strchr(":/?#[]@", UCH(c)) != 0)
+#define RFC_3986_SUB_DELIMS(c) ((c) != 0 && strchr("!$&'()*+,;=", UCH(c)) != 0)
+
 /*
  *  The following are flag bits which may be ORed together to form
  *  a number to give the 'wanted' argument to HTParse.
@@ -44,13 +49,26 @@ extern "C" {
 #define URL_XALPHAS     UCH(1)
 #define URL_XPALPHAS    UCH(2)
 #define URL_PATH        UCH(4)
+
+#ifdef USE_IDN2
+    typedef enum {
+	LYidna2003 = 1,
+	LYidna2008,
+	LYidnaTR46,
+	LYidnaCompat
+    } HTIdnaModes;
+
+    extern int LYidnaMode;
+#endif
+
 /*	Strip white space off a string.				HTStrip()
  *	-------------------------------
  *
  * On exit,
  *	Return value points to first non-white character, or to 0 if none.
  *	All trailing white space is OVERWRITTEN with zero.
- */ extern char *HTStrip(char *s);
+ */
+    extern char *HTStrip(char *s);
 
 /*
  *	Parse a port number
@@ -94,26 +112,18 @@ extern "C" {
 /*	Simplify a filename.				HTSimplify()
  *	--------------------
  *
- *  A unix-style file is allowed to contain the seqeunce xxx/../ which may
- *  be replaced by "" , and the seqeunce "/./" which may be replaced by "/".
+ *  A unix-style file is allowed to contain the sequence xxx/../ which may
+ *  be replaced by "" , and the sequence "/./" which may be replaced by "/".
  *  Simplification helps us recognize duplicate filenames.
- *
- *	Thus,	/etc/junk/../fred	becomes /etc/fred
- *		/etc/junk/./fred	becomes	/etc/junk/fred
- *
- *      but we should NOT change
- *		http://fred.xxx.edu/../..
- *
- *	or	../../albert.html
  */
-    extern void HTSimplify(char *filename);
+    extern void HTSimplify(char *filename, BOOL absolute);
 
 /*	Make Relative Name.					HTRelative()
  *	-------------------
  *
  * This function creates and returns a string which gives an expression of
  * one address as related to another.  Where there is no relation, an absolute
- * address is retured.
+ * address is returned.
  *
  *  On entry,
  *	Both names must be absolute, fully qualified names of nodes

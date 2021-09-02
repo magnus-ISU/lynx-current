@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYCharUtils.c,v 1.127 2013/11/28 11:17:59 tom Exp $
+ * $LynxId: LYCharUtils.c,v 1.136 2021/06/29 22:01:12 tom Exp $
  *
  *  Functions associated with LYCharSets.c and the Lynx version of HTML.c - FM
  *  ==========================================================================
@@ -540,7 +540,7 @@ void LYAddMETAcharsetToStream(HTStream *target, int disp_chndl)
 	disp_chndl = current_char_set;
 
     if (target != 0 && disp_chndl >= 0) {
-	HTSprintf0(&buf, "<META %s content=\"text/html;charset=%s\">\n",
+	HTSprintf0(&buf, "<META %s content=\"" STR_HTML ";charset=%s\">\n",
 		   "http-equiv=\"content-type\"",
 		   LYCharSet_UC[disp_chndl].MIMEname);
 	(*target->isa->put_string) (target, buf);
@@ -605,7 +605,7 @@ void LYAddMETAcharsetToFD(FILE *fd, int disp_chndl)
      * during the lifetime of the file (by toggling raw mode or changing the
      * display character set), so proceed.
      */
-    fprintf(fd, "<META %s content=\"text/html;charset=%s\">\n",
+    fprintf(fd, "<META %s content=\"" STR_HTML ";charset=%s\">\n",
 	    "http-equiv=\"content-type\"",
 	    LYCharSet_UC[disp_chndl].MIMEname);
 }
@@ -1081,7 +1081,7 @@ char **LYUCFullyTranslateString(char **str,
     BOOLEAN no_bytetrans;
     UCTransParams T;
     BOOL from_is_utf8 = FALSE;
-    char *puni;
+    char *puni = 0;
     enum _state {
 	S_text,
 	S_esc,
@@ -1124,6 +1124,12 @@ char **LYUCFullyTranslateString(char **str,
     if (isEmpty(*str))
 	return str;
 
+    if (cs_from < 0 || cs_to < 0) {
+	CTRACE((tfp, "BUG: LYUCFullyTranslateString from=%d, to=%d\n",
+		cs_from, cs_to));
+	return str;
+    }
+
     /*
      * FIXME: something's wrong with the limit checks here (clearing the
      * buffer helps).
@@ -1136,7 +1142,7 @@ char **LYUCFullyTranslateString(char **str,
      * CJK mode.
      */
     if (IS_CJK_TTY
-#ifdef EXP_JAPANESEUTF8_SUPPORT
+#ifdef USE_JAPANESEUTF8_SUPPORT
 	&& (strcmp(LYCharSet_UC[cs_from].MIMEname, "utf-8") != 0)
 	&& (strcmp(LYCharSet_UC[cs_to].MIMEname, "utf-8") != 0)
 #endif
@@ -1384,7 +1390,7 @@ char **LYUCFullyTranslateString(char **str,
 		    } else {
 			*(unsigned char *) p = UCH(173);
 		    }
-#ifdef EXP_JAPANESEUTF8_SUPPORT
+#ifdef USE_JAPANESEUTF8_SUPPORT
 		} else if (output_utf8) {
 		    if ((!strcmp(LYCharSet_UC[cs_from].MIMEname, "euc-jp") &&
 			 (IS_EUC((unsigned char) (*p),
@@ -1416,12 +1422,15 @@ char **LYUCFullyTranslateString(char **str,
 
 	    if (from_is_utf8) {
 		if (((*p) & 0xc0) == 0xc0) {
+		    const char *pq = p;
+
 		    puni = p;
-		    code = UCGetUniFromUtf8String(&puni);
+		    code = UCGetUniFromUtf8String(&pq);
 		    if (code <= 0) {
 			code = UCH(*p);
 		    } else {
 			what = P_utf8;
+			puni += (pq - (const char *) p);
 		    }
 		}
 	    } else if (use_lynx_specials && !Back &&
@@ -1656,7 +1665,7 @@ char **LYUCFullyTranslateString(char **str,
 	    } else if (code == 8204 || code == 8205 ||
 		       code == 8206 || code == 8207) {
 		CTRACE((tfp, "LYUCFullyTranslateString: Ignoring '%"
-			PRI_UCode_t "'.\n", code));
+			PRI_UCode_t "'.\n", CAST_UCode_t (code)));
 		replace_buf[0] = '\0';
 		state = S_got_outstring;
 		break;
@@ -1707,6 +1716,7 @@ char **LYUCFullyTranslateString(char **str,
 		break;
 #endif
 	    }
+	    /* FALLTHRU */
 
 	case S_recover:
 	    if (what == P_decimal || what == P_hex) {
@@ -1729,7 +1739,7 @@ char **LYUCFullyTranslateString(char **str,
 	    } else if (!T.output_utf8 && stype == st_HTML && !hidden &&
 		       !(HTPassEightBitRaw &&
 			 UCH(*p) >= lowest_8)) {
-		sprintf(replace_buf, "U%.2" PRI_UCode_t "", code);
+		sprintf(replace_buf, "U%.2" PRI_UCode_t "", CAST_UCode_t (code));
 
 		state = S_got_outstring;
 	    } else {
@@ -2107,11 +2117,11 @@ void LYHandleMETA(HTStructured * me, const BOOL *present,
 		HTAnchor_setUCInfoStage(me->node_anchor,
 					current_char_set,
 					UCT_STAGE_HTEXT,
-					UCT_SETBY_MIME);	/* highest priorty! */
+					UCT_SETBY_MIME);	/* highest priority! */
 		HTAnchor_setUCInfoStage(me->node_anchor,
 					current_char_set,
 					UCT_STAGE_STRUCTURED,
-					UCT_SETBY_MIME);	/* highest priorty! */
+					UCT_SETBY_MIME);	/* highest priority! */
 		me->outUCI = HTAnchor_getUCInfoStage(me->node_anchor,
 						     UCT_STAGE_HTEXT);
 		/* The SGML stage will be reset in change_chartrans_handling */
@@ -2169,7 +2179,7 @@ void LYHandleMETA(HTStructured * me, const BOOL *present,
 					    UCT_SETBY_DEFAULT);
 		}
 		if ((p_in->enc != UCT_ENC_CJK)
-#ifdef EXP_JAPANESEUTF8_SUPPORT
+#ifdef USE_JAPANESEUTF8_SUPPORT
 		    && (p_in->enc != UCT_ENC_UTF8)
 #endif
 		    ) {
@@ -2447,7 +2457,7 @@ void LYHandleMETA(HTStructured * me, const BOOL *present,
 		(
 		    me->node_anchor,	/* Parent */
 		    id_string,	/* Tag */
-		    href,	/* Addresss */
+		    href,	/* Address */
 		    (HTLinkType *) 0);	/* Type */
 	    if (id_string)
 		*cp = '#';
@@ -3082,7 +3092,7 @@ void LYCheckForID(HTStructured * me, const BOOL *present,
 	     (
 		 me->node_anchor,	/* Parent */
 		 temp,		/* Tag */
-		 NULL,		/* Addresss */
+		 NULL,		/* Address */
 		 (HTLinkType *) 0))) {	/* Type */
 	    HText_beginAnchor(me->text, me->inUnderline, ID_A);
 	    HText_endAnchor(me->text, 0);
@@ -3111,7 +3121,7 @@ void LYHandleID(HTStructured * me, const char *id)
 	 (
 	     me->node_anchor,	/* Parent */
 	     id,		/* Tag */
-	     NULL,		/* Addresss */
+	     NULL,		/* Address */
 	     (HTLinkType *) 0)) != NULL) {	/* Type */
 	HText_beginAnchor(me->text, me->inUnderline, ID_A);
 	HText_endAnchor(me->text, 0);
@@ -3385,8 +3395,6 @@ void LYformTitle(char **dst,
 
 	if ((tmp_buffer = (char *) malloc(strlen(src) + 1)) == 0)
 	    outofmem(__FILE__, "LYformTitle");
-
-	assert(tmp_buffer != NULL);
 
 	switch (kanji_code) {	/* 1997/11/22 (Sat) 09:28:00 */
 	case EUC:

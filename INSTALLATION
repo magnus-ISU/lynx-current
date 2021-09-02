@@ -133,12 +133,16 @@ II. Compile instructions -- UNIX
     NOTE:  Lynx is a curses-based application, so you must have a curses
     library available to link to.  Native curses (on the system when it was
     installed) are often broken, so you may get superior performance if you
-    have either "ncurses" ("ftp://invisible-island.net/ncurses") or "slang"
-    ("ftp://space.mit.edu/pub/davis/slang").  If you install these libraries
-    in your home directory or a non-default location, you may need to set the
-    CPPFLAGS (full path to include files) and LIBS (full path to library files)
-    environment variables BEFORE running configure.  See "1d. Environment".
-    Use the "--with-screen=ncurses" or "--with-screen=slang" option.
+    have either
+    
+	    "ncurses" ("ftp://ftp.invisible-island.net/ncurses") or
+	    "slang"   ("ftp://space.mit.edu/pub/davis/slang").
+    
+    If you install these libraries in your home directory or a non-default
+    location, you may need to set the CPPFLAGS (full path to include files) and
+    LIBS (full path to library files) environment variables BEFORE running
+    configure.  See "1d.  Environment".  Use the "--with-screen=ncurses" or
+    "--with-screen=slang" option.
 
     Note that while lynx will build with a variety of versions of curses and
     ncurses, some will be less satisfactory.  Versions of ncurses before
@@ -148,7 +152,7 @@ II. Compile instructions -- UNIX
     periodically.
 
     Note compiler/system specific problems below.  See also:
-	http://invisible-island.net/ncurses/ncurses.faq.html
+	https://invisible-island.net/ncurses/ncurses.faq.html
 
 1b. Platforms.  Configure should work properly on any Unix-style system.
     It has been tested on the following platforms.
@@ -194,6 +198,9 @@ II. Compile instructions -- UNIX
 
   --disable-bibp-urls			(define DISABLE_BIBP)
 	Disable (do not compile code) support for bibp: URLs.
+
+  --disable-cjk				(define CJK_EX)
+	Disable logic for supporting CJK documents.
 
   --disable-color-style			(define USE_COLOR_STYLE)
 	Use this option to disable optional color style.  This is implemented
@@ -316,6 +323,10 @@ II. Compile instructions -- UNIX
 	requested, the configure script will otherwise use the messages in the
 	./po subdirectory.
 
+  --disable-japanese-utf8		(define USE_JAPANESEUTF8_SUPPORT)
+	use Japanese UTF-8 logic, which uses iconv to convert pages with
+	charset euc-jp, shift_jis to utf-8. 
+
   --disable-justify-elts		(define USE_JUSTIFY_ELTS)
 	Do not use element-justification logic.
 
@@ -416,9 +427,10 @@ II. Compile instructions -- UNIX
 	lynx.cfg, allowing user to configure a subset of the compiled-in
 	charsets for normal use.
 
-  --enable-cjk				(define CJK_EX)
-	Add experimental logic for supporting CJK documents.  (This is not
-	necessary for CJK support and may go away in a future release.)
+  --enable-chinese-utf8			(define EXP_CHINESEUTF8_SUPPORT)
+	use Chinese UTF-8 logic, which uses iconv for converting pages with
+	charset gb2312 (aliased to euc-cn), big5 to utf-8.  The Korean charset
+	euc-kr happens to work with this setting.
 
   --enable-debug			(The symbol DEBUG is always defined.)
         Use this option to compile-in support for debugging.
@@ -479,9 +491,6 @@ II. Compile instructions -- UNIX
   --enable-ipv6         		(define ENABLE_IPV6)
 	use IPV6 (with IPV4) logic.
 
-  --enable-japanese-utf8		(define EXP_JAPANESEUTF8_SUPPORT)
-	use experimental Japanese UTF-8 logic.
-
   --enable-kbd-layout			(define EXP_KEYBOARD_LAYOUT)
 	Disabled by default, this option allows you to use translation
 	tables on the input keystrokes.  Current tables include
@@ -501,9 +510,28 @@ II. Compile instructions -- UNIX
   --enable-nls				(several definitions)
 	use Native Language Support (i.e., gettext).
 
+	This relies upon external programs (msgfmt and xgettext) to format
+	the message catalogs:
+	
+	    + Unless you set the environment variables MSGFMT and XGETTEXT to
+	      the full pathnames of these utilities, the configure script will
+	      search for the GNU versions of these utilities.
+	      
+	      It will also search for the GNU version of the corresponding
+	      gettext() runtime function.  On some platforms (such as Solaris),
+	      this search gives misleading results.
+
+	    + If you set those environment variables to full pathnames, the
+	      configure script will warn if they are not the GNU versions of
+	      the utilities.
+
   --enable-nsl-fork			(define NSL_FORK)
 	Disabled by default, this allows interruption of NSL requests,
 	so that `z' will stop the `look-up' phase of a connection.
+
+  --enable-stdnoreturn			(define HAVE_STDNORETURN_H)
+	Check for C11 _Noreturn feature, using that rather than gcc-specific
+	__attribute__((noreturn)), to improve compiler diagnostics.
 
   --enable-syslog			(define SYSLOG_REQUESTED_URLS)
 	Use this option to log NSL requests via syslog().
@@ -520,6 +548,9 @@ II. Compile instructions -- UNIX
 
   --enable-wais
 	Use this option to turn on configure check for freeWAIS library.
+
+  --enable-wcwidth-support		(define EXP_WCWIDTH_SUPPORT)
+	use experimental wcwidth/UTF-8 logic.
 
   --enable-widec
 	Use this option to allow the configure script to look for wide-curses
@@ -692,6 +723,10 @@ II. Compile instructions -- UNIX
 	the curses library.  The variant ncursesw is the wide-character
 	version of ncurses.  See also the --enable-widec option.
 
+	For the ncurses/ncursesw options, the script also accepts variants
+	such as "ncursesw6", which helps it to find a specific ncurses config
+	script.
+
 	The pdcurses selection supported by the configure script is a UNIX-only
 	library which uses X11.  If you are configuring with DJGPP, the likely
 	choice is "curses", since that is how PDCurses is normally installed.
@@ -716,9 +751,7 @@ II. Compile instructions -- UNIX
 	servers.  Also, instead of SOCKSifying lynx for use behind a firewall,
 	you are better off if you make it normally, and set it up to use a
 	proxy server.  You can SOCKSify the proxy server, and it will handle
-	all clients, not just Lynx.  If your SOCKS server was compiled to use
-	the short version of Rbind, also include -DSHORTENED_RBIND in your
-	SITE_LYDEFS and SITE_DEFS.  If you do SOCKSify lynx, you can turn off
+	all clients, not just Lynx.  If you do SOCKSify lynx, you can turn off
 	SOCKS proxy usage via a -nosocks command line switch.
 
   --with-ssl[=XXX]			(define USE_SSL)
@@ -930,7 +963,8 @@ Simplified:
 ----------
 
 Sources:
-    Download the current sources (choose a zip-file) from http://lynx.isc.org
+    Download the current sources (choose a zip-file) from
+	https://lynx.invisible-island.net/
     and unzip them into a directory where you will build Lynx.
 
 Compiler:
@@ -1462,4 +1496,4 @@ VIII. Acknowledgment
 
 -- 1999/04/24 - H. Nelson <lynx-admin@irm.nara.kindai.ac.jp>
 -- vile:txtmode
--- $LynxId: INSTALLATION,v 1.123 2014/01/09 20:07:01 tom Exp $
+-- $LynxId: INSTALLATION,v 1.135 2021/07/02 00:15:34 tom Exp $

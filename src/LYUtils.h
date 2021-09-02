@@ -1,4 +1,4 @@
-/* $LynxId: LYUtils.h,v 1.96 2013/11/28 11:22:53 tom Exp $ */
+/* $LynxId: LYUtils.h,v 1.100 2018/03/27 21:19:21 tom Exp $ */
 #ifndef LYUTILS_H
 #define LYUTILS_H
 
@@ -122,15 +122,12 @@ extern "C" {
 #define restorePoundSelector(pound) if ((pound) != NULL) *(pound) = '#'
 
     extern BOOL strn_dash_equ(const char *p1, const char *p2, int len);
-    extern BOOLEAN LYAddSchemeForURL(char **AllocatedString, const char *default_scheme);
     extern BOOLEAN LYCachedTemp(char *result, char **cached);
     extern BOOLEAN LYCanDoHEAD(const char *address);
     extern BOOLEAN LYCanReadFile(const char *name);
     extern BOOLEAN LYCanWriteFile(const char *name);
     extern BOOLEAN LYCloseInput(FILE *fp);
     extern BOOLEAN LYCloseOutput(FILE *fp);
-    extern BOOLEAN LYExpandHostForURL(char **AllocatedString,
-				      char *prefix_list, char *suffix_list);
     extern BOOLEAN LYFixCursesOnForAccess(const char *addr, const char *physical);
     extern BOOLEAN LYPathOffHomeOK(char *fbuffer, size_t fbuffer_size);
     extern BOOLEAN LYValidateFilename(bstring **result, bstring **given);
@@ -166,6 +163,7 @@ extern "C" {
     extern const char *wwwName(const char *pathname);
     extern int HTCheckForInterrupt(void);
     extern int LYConsoleInputFD(int need_selectable);
+    extern int LYRenameFile(char *src, char *dst);
     extern int LYCopyFile(char *src, char *dst);
     extern int LYGetHilitePos(int cur, int count);
     extern int LYRemoveTemp(char *name);
@@ -304,7 +302,7 @@ extern "C" {
     extern void Define_VMSLogical(char *LogicalName, char *LogicalValue);
 #endif				/* VMS */
 
-#if ! HAVE_PUTENV
+#if !defined(HAVE_PUTENV)
     extern int putenv(const char *string);
 #endif				/* HAVE_PUTENV */
 
@@ -317,6 +315,11 @@ extern "C" {
 
 #if defined(_WINDOWS)
     extern int win32_check_interrupt(void);
+
+#if (defined(__MINGW32__) && !defined(HAVE_SLEEP))
+#undef sleep
+    void sleep(unsigned sec);
+#endif
 #endif
 
     /*

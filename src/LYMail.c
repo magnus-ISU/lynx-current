@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYMail.c,v 1.96 2013/11/28 11:23:37 tom Exp $
+ * $LynxId: LYMail.c,v 1.100 2020/01/21 21:33:27 tom Exp $
  */
 #include <HTUtils.h>
 #include <HTParse.h>
@@ -369,7 +369,7 @@ Blat <filename> -t <recipient> [optional switches (see below)]
 -b <recipient>    : blind carbon copy recipient list (comma separated)
 -help             : displays the help message.
 -mime             : MIME Quoted-Printable Content-Transfer-Encoding.
--q                : supresses *all* output.
+-q                : suppresses *all* output.
 -server <addr>    : overrides the default SMTP server to be used.
 
 */
@@ -534,7 +534,6 @@ int LYSendMailFile(char *the_address,
 #endif
 #ifdef __DJGPP__
     if (LYGetEnv("SHELL")) {
-	extern int dj_is_bash;
 	extern char *shell;
 	const char *c_option;
 	const char *format = "%s %s %s -t %s -F %s";
@@ -1319,7 +1318,7 @@ void reply_by_mail(char *mail_address,
 	if (!LYHaveCJKCharacterSet &&
 	    strncasecomp(LYCharSet_UC[current_char_set].MIMEname, "x-", 2)
 	    != 0) {
-	    HTSprintf(&header, "Content-Type: text/plain; charset=%s\n",
+	    HTSprintf(&header, "Content-Type: " STR_PLAINTEXT "; charset=%s\n",
 		      LYCharSet_UC[current_char_set].MIMEname);
 	}
 	StrAllocCat(header, "Content-Transfer-Encoding: 8bit\n");
@@ -1407,7 +1406,7 @@ void reply_by_mail(char *mail_address,
 	label = "From";
 #endif /* VMS */
 	/* Add the personal mail address if there is one. */
-	if (personal_mail_address)
+	if (non_empty(personal_mail_address))
 	    StrAllocCopy(from_address, personal_mail_address);
 	if (!header_prompt(label, &from_address, LINESIZE)) {
 	    goto cancelled;
@@ -1449,7 +1448,7 @@ void reply_by_mail(char *mail_address,
     if (!LYNoCc) {
 	LYaddstr(ENTER_ADDRESS_FOR_CC);
 	LYaddstr(BLANK_FOR_NO_COPY);
-	if (personal_mail_address)
+	if (non_empty(personal_mail_address))
 	    StrAllocCopy(cc_address, personal_mail_address);
 	if (!header_prompt("Cc", &cc_address, LINESIZE)) {
 	    goto cancelled;
@@ -1599,7 +1598,7 @@ void reply_by_mail(char *mail_address,
 	LYclear();		/* clear the screen */
 	goto cleanup;
     }
-    if ((body == NULL && LynxSigFile != NULL) &&
+    if ((body == NULL && non_empty(LynxSigFile)) &&
 	(fp = fopen(LynxSigFile, TXT_R)) != NULL) {
 	LYStatusLine = (LYlines - 1);
 	if (term_letter) {
@@ -1767,7 +1766,7 @@ void reply_by_mail(char *mail_address,
  */
 BOOLEAN LYSystemMail(void)
 {
-    if (system_mail == 0 || !strcmp(system_mail, "unknown")) {
+    if (isEmpty(system_mail) || !strcmp(system_mail, "unknown")) {
 	HTAlert(gettext("No system mailer configured"));
 	return FALSE;
     }

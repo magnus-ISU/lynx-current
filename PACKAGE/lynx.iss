@@ -1,5 +1,5 @@
-; $LynxId: lynx.iss,v 1.12 2014/01/09 00:26:08 tom Exp $
-; vile:ts=2 sw=2 notabinsert
+; $LynxId: lynx.iss,v 1.35 2021/01/01 14:53:59 tom Exp $
+; vile:ts=4 sw=4 notabinsert fk=8bit
 ;
 ; This is the BASE script for different flavors of the installer for Lynx.
 ; It can be overridden to select different source-executables (and their associated
@@ -19,11 +19,15 @@
 #define MyAppExeName "lynx.exe"
 #endif
 
+#if Ver < 0x5060100
 #define MySendTo '{sendto}\' + myAppName + '.lnk'
+#else
+#define MySendTo '{usersendto}\' + myAppName + '.lnk'
+#endif
 #define MyQuickLaunch '{userappdata}\Microsoft\Internet Explorer\Quick Launch\' + myAppName + '.lnk'
 
 #ifndef SourceExeName
-#define SourceExeName "lynx.exe"
+#define SourceExeName "lynx-default.exe"
 #endif
 
 #ifndef NoScreenDll
@@ -37,7 +41,7 @@
 #endif
 
 #ifndef ZlibDllName
-#define ZlibDllName "zlib.dll"
+#define ZlibDllName "zlib1.dll"
 #endif
 
 #ifndef BzipExeName
@@ -62,7 +66,7 @@
 #ifndef DllsSrcDir
 #define DllsSrcDir GetEnv("LYNX_DLLSDIR")
 #if DllsSrcDir == ""
-#define DllsSrcDir "..\dlls"
+#define DllsSrcDir "..\bin"
 #endif
 #endif
 
@@ -87,10 +91,10 @@ AppName={#MyAppName}
 #define LYNX_TARGET0 StringChange(LYNX_VERSION,LYNX_RELEASE + "rel.",LYNX_RELEASE + ".00")
 #define LYNX_TARGET1 StringChange(LYNX_TARGET0,LYNX_TARGETS + "dev.",LYNX_RELEASE + ".10")
 #define LYNX_TARGET2 StringChange(LYNX_TARGET1,LYNX_TARGETS + "pre.",LYNX_RELEASE + ".20")
-#emit 'VersionInfoVersion=' + LYNX_TARGET2
+#emit 'VersionInfoVersion=' + LYNX_TARGET1
 AppVerName={#MyAppVerName}
 AppPublisher={#MyAppPublisher}
-AppCopyright=© 1997-2013,2014, Thomas E. Dickey
+AppCopyright=© 1997-2020,2021, Thomas E. Dickey
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
@@ -104,6 +108,7 @@ OutputDir=..\PACKAGE\lynx-setup
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=none
+SetupLogging=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -127,34 +132,31 @@ Name: "{app}\doc\test"
 Name: "{app}\help"
 Name: "{app}\help\keystrokes"
 Name: "{app}\icon"
-Name: "{app}\tmp"
 
 [Files]
 #emit 'Source: "' + BinsSrcDir + '\' + SourceExeName + '"; DestDir: "{app}"; DestName: ' + MyAppExeName + '; AfterInstall: myPostExecutable; Flags: ignoreversion'
 #ifndef NoScreenDll
 #emit 'Source: "' + DllsSrcDir + '\' + ScreenDllName + '"; DestDir: "{app}"; DestName: ' + ScreenDllName + '; Flags: ignoreversion'
 #endif
-#emit 'Source: "' + DllsSrcDir + '\' + ZlibDllName + '"; DestDir: "{app}"; DestName: ' + ZlibDllName + '; Flags: ignoreversion'
-#emit 'Source: "' + DllsSrcDir + '\' + BzipDllName + '"; DestDir: "{app}"; DestName: ' + BzipDllName + '; Flags: ignoreversion'
 #emit 'Source: "' + DllsSrcDir + '\' + BzipExeName + '"; DestDir: "{app}"; DestName: ' + BzipExeName + '; Flags: ignoreversion'
 #emit 'Source: "' + DllsSrcDir + '\' + GzipExeName + '"; DestDir: "{app}"; DestName: ' + GzipExeName + '; Flags: ignoreversion'
 #emit 'Source: "' + DocsSrcDir + '\*.*"; DestDir: "{app}\doc"; Flags: '
-#emit 'Source: "' + DocsSrcDir + '\samples\*.*"; DestDir: "{app}\doc\samples"; Flags: '
-#emit 'Source: "' + DocsSrcDir + '\test\*.*"; DestDir: "{app}\doc\test"; Flags: '
+#emit 'Source: "' + DocsSrcDir + '\..\samples\*.*"; DestDir: "{app}\doc\samples"; Flags: '
+#emit 'Source: "' + DocsSrcDir + '\..\test\*.*"; DestDir: "{app}\doc\test"; Flags: '
 #emit 'Source: "' + HelpSrcDir + '\*.*"; DestDir: "{app}\help"; Flags: '
 #emit 'Source: "' + HelpSrcDir + '\keystrokes\*.*"; DestDir: "{app}\help\keystrokes"; Flags: '
 
 ; some of these data files are from an earlier installer by Claudio Santambrogio
-Source: "..\samples\lynx.ico"; DestDir: "{app}\icon"
-Source: "..\samples\lynx.bat"; DestDir: "{app}"
-Source: "..\samples\jumps.htm"; DestDir: "{app}"
-Source: "..\samples\home.htm"; DestDir: "{app}"
-Source: "..\samples\lynx_bookmarks.htm"; DestDir: "{app}"
-Source: "..\samples\*.lss"; DestDir: "{app}"
-Source: "..\samples\lynx.bat"; DestDir: "{app}"
-Source: "..\samples\lynx-demo.cfg"; DestDir: "{app}"
-Source: "..\lynx.man"; DestDir: "{app}"
 Source: "..\lynx.cfg"; DestDir: "{app}" ; AfterInstall: myCustomCfg; Flags: ignoreversion
+Source: "..\lynx.man"; DestDir: "{app}"
+Source: "..\samples\*.lss"; DestDir: "{app}"
+Source: "..\samples\home.htm"; DestDir: "{app}"
+Source: "..\samples\jumps.htm"; DestDir: "{app}"
+Source: "..\samples\lynx-demo.cfg"; DestDir: "{app}"
+Source: "..\samples\lynx.bat"; DestDir: "{app}"
+Source: "..\samples\lynx.ico"; DestDir: "{app}\icon"
+Source: "..\samples\lynx_bookmarks.htm"; DestDir: "{app}"
+Source: "..\samples\oldlynx.bat"; DestDir: "{app}"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
@@ -172,7 +174,8 @@ Type: dirifempty; Name: {app}
 #emit 'Type: files; Name: ' + myQuickLaunch
 
 [Code]
-#emit 'const MY_APP_NAME = ''{app}\' + myAppName + '.exe'';'
+#emit 'const MY_APP_NAME = ''{app}\' + myAppProg + '.exe'';'
+
 
 function isGuru(): Boolean;
 begin
@@ -334,7 +337,7 @@ begin
   Log('** set LYNX_CFG=' + CfgFile);
 
   SaveStringToFile(CfgFile, 'HELPFILE:' + AppDir + '/help/Lynx_help_main.html.gz' + #10, True);
-  SaveStringToFile(CfgFile, 'COLOR_STYLE:' + AppDir + '/opaque.lss' + #10, True);
+  SaveStringToFile(CfgFile, 'COLOR_STYLE:' + AppDir + '/lynx.lss' + #10, True);
 
   SaveStringToFile(CfgFile, 'CHMOD_PATH:' + #10, True);
   SaveStringToFile(CfgFile, 'COPY_PATH:' + #10, True);
@@ -385,20 +388,205 @@ begin
         end
     end
 end;
-      
+
+#ifdef SslGlob1
+#emit "const SslGlob1 = " + SslGlob1 + ";"
+#emit "const SslGlob2 = " + SslGlob2 + ";"
+var
+    SslDirPage     : TInputFileWizardPage;
+    SslLibraryPath : String;
+
+function DirContains(const PathList: string; const PathItem: string): Boolean;
+var
+    myList : string;
+    myItem : string;
+    myPart : string;
+    offset : integer;
+begin
+    Result := False;
+    myList := Uppercase(PathList);
+    myItem := Uppercase(RemoveBackslashUnlessRoot(PathItem));
+    offset := Pos(myItem, myList);
+    if offset <> 0 then
+        begin
+        myPart := Copy( myList, offset + Length(myItem), Length(myList) );
+        if ( Length(myPart) = 0 ) or ( Pos(';', myPart) = 1 ) or ( Pos('\;', myPart) = 1 ) then
+            begin
+            Result := True;
+            end;
+        end;
+end;
+
+function PathCat(const head, tail: string): string;
+begin
+    Result := RemoveBackslashUnlessRoot(head) + '\' + tail;
+end;
+
+procedure CopyFromTo(const source, target, name: string);
+var
+    FailExists : Boolean;
+    Status:      Boolean;
+begin
+    Log('Copy from: ' + PathCat(source, name));
+    Log('Copy   to: ' + PathCat(target, name));
+    FailExists := False;
+    Status := FileCopy(PathCat(source, name), PathCat(target, name), FailExists);
+    if not Status then
+        begin
+        MsgBox('Failed to copy ' + name, mbError, MB_OK);
+        Abort();
+        end;
+end;
+
+procedure ReallyDelete(const fullPath: string);
+begin
+    if FileExists( fullpath ) then
+        begin
+        if DeleteFile( fullPath ) then
+            Log( '...successful' )
+        else
+            begin
+            MsgBox('Failed to delete ' + fullPath, mbError, MB_OK);
+            end;
+        end;
+end;
+
+procedure DeleteAppFile(const name: string);
+var
+    AppDir   : string;
+    fullPath : string;
+    findRec  : TFindRec;
+begin
+    AppDir := ExpandConstant('{app}');
+    fullPath := PathCat( AppDir, name );
+    Log( 'Deleting ' + fullPath );
+    if Pos('*', fullPath) <> 0 then
+        begin
+        if FindFirst(fullPath, findRec) then
+            begin
+            ReallyDelete( PathCat( AppDir, findRec.name ) );
+            while FindNext( findRec ) do
+                ReallyDelete( PathCat( AppDir, findRec.name ) );
+            end
+        end
+    else
+        begin
+        ReallyDelete( fullPath );
+        end;
+end;
+
+function checkSslDir(): Boolean;
+begin
+    Result := True;
+    SslLibraryPath := Trim( SslDirPage.Values[0] );
+    if ( Length( SslLibraryPath ) = 0 ) or ( not FileExists( SslLibraryPath ) ) then
+        begin
+        MsgBox('No SSL library found', mbError, MB_OK)
+        Result := False;
+        end;
+end;
+
+procedure copySslDlls();
+var
+    SslDirectory   : String;
+    SslFilename    : String;
+    TargetDir      : String;
+begin
+    Log('Copying SSL DLLs');
+    SslDirectory := ExtractFilePath(SslLibraryPath);
+
+    // If the directory is not already in the PATH, copy the DLLs to
+    // the application directory.
+    if DirContains( GetEnv('PATH'), SslDirectory) then
+        Log( 'PATH contains SSL directory' )
+    else
+        begin
+        TargetDir := ExpandConstant('{app}');
+        CreateDir(TargetDir);
+        if DirExists(TargetDir) then
+            begin
+            SslFilename := Lowercase( ExtractFileName( SslLibraryPath ) );
+            CopyFromTo( SslDirectory, TargetDir, SslFilename );
+            Log( 'comparing: ' + SslFilename + ' to ' + SslGlob1 );
+            if CompareText( SslFilename, SslGlob1 ) = 0 then
+                // old-ssl is literal, new is a glob...
+                CopyFromTo( SslDirectory, TargetDir, SslGlob2 )
+            else
+                // new-ssl matches "libssl-x-x-z", s/libssl/libcrypto/
+                SslFilename := 'libcrypto' + Copy(SslFilename, 7, Length(SslFilename));
+                CopyFromTo( SslDirectory, TargetDir, SslFilename );
+            // older releases of OpenSSL bundled the Visual Studio runtime
+            SslFilename := SslDirectory + '\' + 'msvcr120.dll';
+            if FileExists(SslFilename) then
+                begin
+                CopyFromTo( SslDirectory, TargetDir, 'msvcr120.dll' );
+                end
+            end
+        else
+            begin
+            MsgBox( 'Cannot create application directory', mbError, MB_OK )
+            Abort();
+            end
+        end;
+    Log('done - Copying SSL DLLs');
+end;
+
+procedure RegisterPreviousData(PreviousDataKey: Integer);
+begin
+    SetPreviousData( PreviousDataKey, 'SSL PATH', SslLibraryPath );
+end;
+
+function NextButtonClick(CurPageId: integer): Boolean;
+begin
+    Result := True;
+    if CurPageId = SslDirPage.Id then
+        begin
+        Result := checkSslDir();
+        end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+    if CurStep = ssInstall then
+    begin
+        CopySslDlls();
+    end;
+end;
+
+procedure InitializeWizard();
+var
+    myGlob: string;
+begin
+    // Create a page to locate the SSL library
+    SslDirPage := CreateInputFilePage(wpSelectDir,
+        'Select SSL Library Location',
+        'Where is the SSL library located?',
+        'Select it from the directory, then click Next.');
+
+    myGlob := 'SSL dll|' + SslGlob1;
+    Log( 'search for SSL libraries ' + myGlob );
+    SslDirPage.Add( 'Locate SSL library:', myGlob, '*.dll' );
+    SslDirPage.Values[0] := GetPreviousData( 'SSL PATH', '' );
+end;
+#endif
+
 // On uninstall, we do not know which registry setting was selected during install, so we remove all.
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   case CurUninstallStep of
     usUninstall:
       begin
-        // MsgBox('CurUninstallStepChanged:' #13#13 'Uninstall is about to start.', mbInformation, MB_OK)
+      Log('CurUninstallStepChanged:' + 'Uninstall is about to start.')
         // ...insert code to perform pre-uninstall tasks here...
+#ifdef SslGlob1
+      DeleteAppFile( SslGlob1 );
+      DeleteAppFile( SslGlob2 );
+      DeleteAppFile( 'msvcr120.dll' );
+#endif
       end;
     usPostUninstall:
       begin
         removeAnyVariable('LYNX_CFG');
-
       {
         If we don't find the settings in the current user, try the local machine.
         The setup program cannot pass the all-users flag to the uninstaller, so we
@@ -410,8 +598,8 @@ begin
         Log('Checking local-machine registry key');
         CleanupMyKey(HKEY_LOCAL_MACHINE);
         end;
-    
-        // MsgBox('CurUninstallStepChanged:' #13#13 'Uninstall just finished.', mbInformation, MB_OK);
+
+        Log('CurUninstallStepChanged:' + 'Uninstall just finished.');
       end;
   end;
 end;

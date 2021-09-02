@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTAnchor.c,v 1.76 2013/11/28 11:34:24 tom Exp $
+ * $LynxId: HTAnchor.c,v 1.82 2020/01/21 21:58:52 tom Exp $
  *
  *	Hypertext "Anchor" Object				HTAnchor.c
  *	==========================
@@ -16,7 +16,7 @@
  *	(c) Copyright CERN 1991 - See Copyright.html
  */
 
-#define HASH_SIZE 1001		/* Arbitrary prime.  Memory/speed tradeoff */
+#define HASH_SIZE 997		/* Arbitrary prime.  Memory/speed tradeoff */
 
 #include <HTUtils.h>
 #include <HTAnchor.h>
@@ -31,29 +31,15 @@
 #include <LYUtils.h>
 #include <LYLeaks.h>
 
-#define HASH_TYPE unsigned short
+#define HASH_OF(h, v) ((HASH_TYPE)((h) * 3 + UCH(v)) % HASH_SIZE)
 
-#ifdef NOT_DEFINED
-/*
- *	This is the hashing function used to determine which list in the
- *		adult_table a parent anchor should be put in.  This is a
- *		much simpler function than the original used.
- */
-#define HASH_FUNCTION(cp_address) \
-	( (HASH_TYPE)strlen(cp_address) *\
-	  (HASH_TYPE)TOUPPER(*cp_address) % HASH_SIZE )
-#endif /* NOT_DEFINED */
-
-/*
- *	This is the original function.	We'll use it again. - FM
- */
-static HASH_TYPE HASH_FUNCTION(const char *cp_address)
+static HASH_TYPE anchor_hash(const char *cp_address)
 {
     HASH_TYPE hash;
-    const unsigned char *p;
+    const char *p;
 
-    for (p = (const unsigned char *) cp_address, hash = 0; *p; p++)
-	hash = (HASH_TYPE) (hash * 3 + (*(const unsigned char *) p)) % HASH_SIZE;
+    for (p = cp_address, hash = 0; *p; p++)
+	hash = HASH_OF(hash, *p);
 
     return (hash);
 }
@@ -86,8 +72,6 @@ static HTParentAnchor0 *HTParentAnchor0_new(const char *address,
     if (newAnchor == NULL)
 	outofmem(__FILE__, "HTParentAnchor0_new");
 
-    assert(newAnchor != NULL);
-
     newAnchor->parent = newAnchor;	/* self */
     StrAllocCopy(newAnchor->address, address);
     newAnchor->adult_hash = (HASH_TYPE) hash;
@@ -101,8 +85,6 @@ static HTParentAnchor *HTParentAnchor_new(HTParentAnchor0 *parent)
 
     if (newAnchor == NULL)
 	outofmem(__FILE__, "HTParentAnchor_new");
-
-    assert(newAnchor != NULL);
 
     newAnchor->parent = parent;	/* cross reference */
     parent->info = newAnchor;	/* cross reference */
@@ -124,8 +106,6 @@ static HTChildAnchor *HTChildAnchor_new(HTParentAnchor0 *parent)
     if (p == NULL)
 	outofmem(__FILE__, "HTChildAnchor_new");
 
-    assert(p != NULL);
-
     p->parent = parent;		/* parent reference */
     return p;
 }
@@ -137,8 +117,6 @@ static HTChildAnchor *HText_pool_ChildAnchor_new(HTParentAnchor *parent)
 
     if (p == NULL)
 	outofmem(__FILE__, "HText_pool_ChildAnchor_new");
-
-    assert(p != NULL);
 
     p->parent = parent->parent;	/* parent reference */
     return p;
@@ -454,7 +432,7 @@ static HTParentAnchor0 *HTAnchor_findAddress_in_adult_table(const DocAddress *ne
     /*
      * Select list from hash table,
      */
-    hash = HASH_FUNCTION(newdoc->address);
+    hash = anchor_hash(newdoc->address);
     adults = &(adult_table[hash]);
 
     /*
@@ -706,7 +684,7 @@ BOOL HTAnchor_delete(HTParentAnchor0 *me)
 }
 
 /*
- * Unnamed children (children_notag) have no sence without HText - delete them
+ * Unnamed children (children_notag) have no sense without HText - delete them
  * and their links if we are about to free HText.  Document currently exists. 
  * Called within HText_free().
  */
@@ -784,9 +762,7 @@ static void HTParentAnchor_free(HTParentAnchor *me)
     }
     FREE(me->SugFname);
     FREE(me->cache_control);
-#ifdef EXP_HTTP_HEADERS
     HTChunkClear(&(me->http_headers));
-#endif
     FREE(me->content_type_params);
     FREE(me->content_type);
     FREE(me->content_language);
@@ -1089,14 +1065,12 @@ const char *HTAnchor_SugFname(HTParentAnchor *me)
     return (me ? me->SugFname : NULL);
 }
 
-#ifdef EXP_HTTP_HEADERS
 /*	HTTP Headers.
 */
 const char *HTAnchor_http_headers(HTParentAnchor *me)
 {
     return (me ? me->http_headers.data : NULL);
 }
-#endif
 
 /*	Content-Type handling (parameter list).
 */
@@ -1315,8 +1289,6 @@ LYUCcharset *HTAnchor_getUCInfoStage(HTParentAnchor *me,
 	    if (stages == NULL)
 		outofmem(__FILE__, "HTAnchor_getUCInfoStage");
 
-	    assert(stages != NULL);
-
 	    for (i = 0; i < UCT_STAGEMAX; i++) {
 		stages->s[i].C.MIMEname = "";
 		stages->s[i].LYhndl = -1;
@@ -1368,9 +1340,9 @@ static void setup_switch_display_charset(HTParentAnchor *me, int h)
     if (!Switch_Display_Charset(h, SWITCH_DISPLAY_CHARSET_MAYBE))
 	return;
     HTAnchor_setUCInfoStage(me, current_char_set,
-			    UCT_STAGE_HTEXT, UCT_SETBY_MIME);	/* highest priorty! */
+			    UCT_STAGE_HTEXT, UCT_SETBY_MIME);	/* highest priority! */
     HTAnchor_setUCInfoStage(me, current_char_set,
-			    UCT_STAGE_STRUCTURED, UCT_SETBY_MIME);	/* highest priorty! */
+			    UCT_STAGE_STRUCTURED, UCT_SETBY_MIME);	/* highest priority! */
     CTRACE((tfp,
 	    "changing UCInfoStage: HTEXT/STRUCTURED stages charset='%s'.\n",
 	    LYCharSet_UC[current_char_set].MIMEname));

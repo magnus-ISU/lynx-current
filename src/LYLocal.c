@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYLocal.c,v 1.127 2013/11/28 11:19:31 tom Exp $
+ * $LynxId: LYLocal.c,v 1.134 2021/07/30 08:23:29 tom Exp $
  *
  *  Routines to manipulate the local filesystem.
  *  Written by: Rick Mallett, Carleton University
@@ -80,7 +80,7 @@
 #endif /* OK_INSTALL */
 
 static int get_filename(const char *prompt,
-			bstring *buf);
+			bstring **buf);
 
 #ifdef OK_PERMIT
 static int permit_location(char *destpath,
@@ -377,7 +377,7 @@ static BOOLEAN ok_localname(char *dst, const char *src)
 
 #define MAX_ARGC 10
 
-static char **make_argv(const char *command,...)
+static char **make_argv(const char *command, ...)
 {
     static char *result[MAX_ARGC];
     int argc = 0;
@@ -424,6 +424,7 @@ static int LYExecv(const char *path,
     char *tmpbuf = 0;
 
 #if defined(__DJGPP__) || defined(_WINDOWS)
+    (void) msg;
     stop_curses();
     HTSprintf0(&tmpbuf, "%s", path);
     for (n = 1; argv[n] != 0; n++)
@@ -466,7 +467,7 @@ static int LYExecv(const char *path,
 	/*NOTREACHED */
 
     default:			/* parent */
-#if !HAVE_WAITPID
+#ifndef HAVE_WAITPID
 	while (wait(&wstatus) != pid) ;		/* do nothing */
 #else
 	while (-1 == waitpid(pid, &wstatus, 0)) {	/* wait for child */
@@ -847,7 +848,7 @@ static int modify_tagged(char *testpath)
 
 	    if (isEmpty(old_path) || strcmp(old_path, src_path)) {
 		if (!ok_stat(src_path, &src_info)
-		    || same_location(&src_info, &dst_info)
+		    || same_location(&dst_info, &src_info)
 		    || !dir_has_same_owner(&dst_info, &src_info)) {
 		    FREE(src_path);
 		    BStrFree(given_target);
@@ -910,7 +911,7 @@ static int modify_name(char *testpath)
 	}
 
 	BStrCopy0(tmpbuf, LYPathLeaf(testpath));
-	if (get_filename(cp, tmpbuf)) {
+	if (get_filename(cp, &tmpbuf)) {
 
 	    /*
 	     * Do not allow the user to also change the location at this time.
@@ -975,7 +976,7 @@ static int modify_location(char *testpath)
 
     BStrCopy0(tmpbuf, testpath);
     *LYPathLeaf(tmpbuf->str) = '\0';
-    if (get_filename(cp, tmpbuf)) {
+    if (get_filename(cp, &tmpbuf)) {
 	if (strlen(tmpbuf->str)) {
 	    StrAllocCopy(savepath, testpath);
 	    StrAllocCopy(newpath, testpath);
@@ -1109,7 +1110,7 @@ static int create_file(char *current_location)
     char *testpath = NULL;
 
     BStrCopy0(tmpbuf, "");
-    if (get_filename(gettext("Enter name of file to create: "), tmpbuf)) {
+    if (get_filename(gettext("Enter name of file to create: "), &tmpbuf)) {
 
 	if (strstr(tmpbuf->str, "//") != NULL) {
 	    HTAlert(gettext("Illegal redirection \"//\" found! Request ignored."));
@@ -1146,7 +1147,7 @@ static int create_directory(char *current_location)
     char *testpath = NULL;
 
     BStrCopy0(tmpbuf, "");
-    if (get_filename(gettext("Enter name for new directory: "), tmpbuf)) {
+    if (get_filename(gettext("Enter name for new directory: "), &tmpbuf)) {
 
 	if (strstr(tmpbuf->str, "//") != NULL) {
 	    HTAlert(gettext("Illegal redirection \"//\" found! Request ignored."));
@@ -1699,7 +1700,7 @@ static char *match_op(const char *prefix,
     size_t len = strlen(prefix);
 
     if (!StrNCmp("LYNXDIRED://", data, 12)
-	&& !StrNCmp(prefix, data + 12, len)) {
+	&& !strncasecomp(prefix, data + 12, (int) len)) {
 	len += 12;
 #if defined(USE_DOS_DRIVES)
 	if (data[len] == '/') {	/* this is normal */
@@ -2204,28 +2205,28 @@ int dired_options(DocInfo *doc, char **newfile)
  * Check DIRED filename, return true on success
  */
 static int get_filename(const char *prompt,
-			bstring *buf)
+			bstring **bufp)
 {
     char *cp;
 
     _statusline(prompt);
 
-    (void) LYgetBString(&buf, FALSE, 0, NORECALL);
-    if (strstr(buf->str, "../") != NULL) {
+    (void) LYgetBString(bufp, FALSE, 0, NORECALL);
+    if (strstr((*bufp)->str, "../") != NULL) {
 	HTAlert(gettext("Illegal filename; request ignored."));
 	return FALSE;
     } else if (no_dotfiles || !show_dotfiles) {
-	cp = LYLastPathSep(buf->str);	/* find last slash */
+	cp = LYLastPathSep((*bufp)->str);	/* find last slash */
 	if (cp)
 	    cp += 1;
 	else
-	    cp = buf->str;
+	    cp = (*bufp)->str;
 	if (*cp == '.') {
 	    HTAlert(gettext("Illegal filename; request ignored."));
 	    return FALSE;
 	}
     }
-    return !isBEmpty(buf);
+    return !isBEmpty((*bufp));
 }
 
 #ifdef OK_INSTALL
@@ -2509,8 +2510,6 @@ void add_menu_item(char *str)
 
     if (tmp == NULL)
 	outofmem(__FILE__, "add_menu_item");
-
-    assert(tmp != NULL);
 
     /*
      * Conditional on tagged != NULL ?

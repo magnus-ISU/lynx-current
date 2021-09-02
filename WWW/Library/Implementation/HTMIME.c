@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTMIME.c,v 1.88 2013/11/28 11:12:52 tom Exp $
+ * $LynxId: HTMIME.c,v 1.101 2021/06/29 22:01:12 tom Exp $
  *
  *			MIME Message Parse			HTMIME.c
  *			==================
@@ -32,6 +32,7 @@
 #include <LYCharUtils.h>
 #include <LYStrings.h>
 #include <LYUtils.h>
+#include <LYGlobalDefs.h>
 #include <LYLeaks.h>
 
 /*		MIME Object
@@ -261,6 +262,8 @@ static int pumpData(HTStream *me)
      */
     CTRACE((tfp, "...address{%s}\n", me->anchor->address));
     method = HTContentTypeToCompressType(me->anchor->content_type_params);
+    if (isEmpty(me->anchor->content_encoding))
+	me->anchor->no_content_encoding = TRUE;
     if ((method != cftNone)
 	&& isEmpty(me->anchor->content_encoding)
 	&& (new_content = UncompressedContentType(me, method)) != 0) {
@@ -386,7 +389,7 @@ static int pumpData(HTStream *me)
 						UCT_SETBY_DEFAULT);
 		    }
 		    if ((p_in->enc != UCT_ENC_CJK)
-#ifdef EXP_JAPANESEUTF8_SUPPORT
+#ifdef USE_JAPANESEUTF8_SUPPORT
 			&& ((p_in->enc != UCT_ENC_UTF8)
 			    || (p_out->enc != UCT_ENC_CJK))
 #endif
@@ -580,8 +583,8 @@ static int pumpData(HTStream *me)
     CTRACE((tfp, "...end of pumpData, copied %"
 	    PRI_off_t " vs %"
 	    PRI_off_t "\n",
-	    me->anchor->actual_length,
-	    me->anchor->content_length));
+	    CAST_off_t (me->anchor->actual_length),
+	    CAST_off_t (me->anchor->content_length)));
     me->anchor->actual_length = 0;
     return HT_OK;
 }
@@ -800,7 +803,7 @@ static int dispatchField(HTStream *me)
 	if (me->anchor->content_length < 0)
 	    me->anchor->content_length = 0;
 	CTRACE((tfp, "        Converted to integer: '%" PRI_off_t "'\n",
-		me->anchor->content_length));
+		CAST_off_t (me->anchor->content_length)));
 	break;
     case miCONTENT_LOCATION:
 	HTMIME_TrimDoubleQuotes(me->value);
@@ -1076,17 +1079,14 @@ static int dispatchField(HTStream *me)
  */
 static void HTMIME_put_character(HTStream *me, int c)
 {
-    /* MUST BE FAST */
+    if (me->anchor->inHEAD) {
+	me->anchor->header_length++;
+    }
     switch (me->state) {
       begin_transparent:
     case MIME_TRANSPARENT:
 	me->anchor->actual_length += 1;
-	if (me->anchor->content_length == 0 ||
-	    (me->anchor->content_length >= me->anchor->actual_length)) {
-	    (me->targetClass.put_character) (me->target, c);
-	} else {
-	    (me->targetClass.put_character) (me->target, c);
-	}
+	(me->targetClass.put_character) (me->target, c);
 	return;
 
 	/* RFC-2616 describes chunked transfer coding */
@@ -1311,6 +1311,9 @@ static void HTMIME_put_character(HTStream *me, int c)
 
 	case '\n':		/* Blank line: End of Header! */
 	    {
+		me->anchor->inHEAD = FALSE;
+		CTRACE((tfp, "HTMIME length %" PRI_off_t "\n",
+			CAST_off_t (me->anchor->header_length)));
 		me->net_ascii = NO;
 		pumpData(me);
 	    }
@@ -2007,7 +2010,7 @@ static void HTMIME_put_character(HTStream *me, int c)
     case miWWW_AUTHENTICATE:
 	me->field = me->state;	/* remember it */
 	me->state = miSKIP_GET_VALUE;
-	/* Fall through! */
+	/* FALLTHRU */
 
     case miSKIP_GET_VALUE:
 	if (c == '\n') {
@@ -2024,6 +2027,7 @@ static void HTMIME_put_character(HTStream *me, int c)
 	me->value_pointer = me->value;
 	me->state = miGET_VALUE;
 	/* Fall through to store first character */
+	/* FALLTHRU */
 
     case miGET_VALUE:
       GET_VALUE:
@@ -2036,6 +2040,7 @@ static void HTMIME_put_character(HTStream *me, int c)
 	    }
 	}
 	/* Fall through (if end of line) */
+	/* FALLTHRU */
 
     case miJUNK_LINE:
 	if (c == '\n') {
@@ -2046,17 +2051,16 @@ static void HTMIME_put_character(HTStream *me, int c)
 
     }				/* switch on state */
 
-#ifdef EXP_HTTP_HEADERS
     HTChunkPutc(&me->anchor->http_headers, UCH(c));
     if (me->state == MIME_TRANSPARENT) {
 	HTChunkTerminate(&me->anchor->http_headers);
-	CTRACE((tfp, "Server Headers:\n%.*s\n",
+	CTRACE((tfp, "Server Headers (%d bytes):\n%.*s\n",
+		me->anchor->http_headers.size,
 		me->anchor->http_headers.size,
 		me->anchor->http_headers.data));
 	CTRACE((tfp, "Server Content-Type:%s\n",
 		me->anchor->content_type_params));
     }
-#endif
     return;
 
   value_too_long:
@@ -2065,12 +2069,9 @@ static void HTMIME_put_character(HTStream *me, int c)
   bad_field_name:		/* Ignore it */
     me->state = miJUNK_LINE;
 
-#ifdef EXP_HTTP_HEADERS
     HTChunkPutc(&me->anchor->http_headers, UCH(c));
-#endif
 
     return;
-
 }
 
 /*	String handling
@@ -2165,25 +2166,25 @@ HTStream *HTMIMEConvert(HTPresentation *pres,
 {
     HTStream *me;
 
+    CTRACE((tfp, "HTMIMEConvert\n"));
     me = typecalloc(HTStream);
 
     if (me == NULL)
 	outofmem(__FILE__, "HTMIMEConvert");
-
-    assert(me != NULL);
 
     me->isa = &HTMIME;
     me->sink = sink;
     me->anchor = anchor;
     me->anchor->safe = FALSE;
     me->anchor->no_cache = FALSE;
+
     FREE(me->anchor->cache_control);
     FREE(me->anchor->SugFname);
     FREE(me->anchor->charset);
-#ifdef EXP_HTTP_HEADERS
+
     HTChunkClear(&me->anchor->http_headers);
     HTChunkInit(&me->anchor->http_headers, 128);
-#endif
+
     FREE(me->anchor->content_type_params);
     FREE(me->anchor->content_language);
     FREE(me->anchor->content_encoding);
@@ -2191,35 +2192,22 @@ HTStream *HTMIMEConvert(HTPresentation *pres,
     FREE(me->anchor->content_disposition);
     FREE(me->anchor->content_location);
     FREE(me->anchor->content_md5);
+
+    me->anchor->inHEAD = TRUE;
+    me->anchor->header_length = 0;
     me->anchor->content_length = 0;
+
     FREE(me->anchor->date);
     FREE(me->anchor->expires);
     FREE(me->anchor->last_modified);
     FREE(me->anchor->ETag);
     FREE(me->anchor->server);
+
     me->target = NULL;
     me->state = miBEGINNING_OF_LINE;
-    /*
-     * Sadly enough, change this to always default to WWW_HTML to parse all
-     * text as HTML for the users.
-     * GAB 06-30-94
-     * Thanks to Robert Rowland robert@cyclops.pei.edu
-     *
-     * After discussion of the correct handline, should be application/octet-
-     * stream or unknown; causing servers to send a correct content type.
-     *
-     * The consequence of using WWW_UNKNOWN is that you end up downloading as a
-     * binary file what 99.9% of the time is an HTML file, which should have
-     * been rendered or displayed.  So sadly enough, I'm changing it back to
-     * WWW_HTML, and it will handle the situation like Mosaic does, and as
-     * Robert Rowland suggested, because being functionally correct 99.9% of
-     * the time is better than being technically correct but functionally
-     * nonsensical.  - FM
-     */
-    /***
-    me->format	  =	WWW_UNKNOWN;
-    ***/
-    me->format = WWW_HTML;
+    me->format = HTAtom_for(ContentTypes[LYContentType]);
+
+    CTRACE((tfp, "default Content-Type is %s\n", HTAtom_name(me->format)));
     me->targetRep = pres->rep_out;
     me->boundary = NULL;	/* Not set yet */
     me->set_cookie = NULL;	/* Not set yet */
@@ -2228,6 +2216,7 @@ HTStream *HTMIMEConvert(HTPresentation *pres,
     me->c_t_encoding = 0;	/* Not set yet */
     me->compression_encoding = NULL;	/* Not set yet */
     me->net_ascii = NO;		/* Local character set */
+
     HTAnchor_setUCInfoStage(me->anchor, current_char_set,
 			    UCT_STAGE_STRUCTURED,
 			    UCT_SETBY_DEFAULT);
@@ -2319,8 +2308,6 @@ static void HTmmdec_base64(char **t,
     if ((buf = typeMallocn(char, strlen(s) * 3 + 1)) == 0)
 	  outofmem(__FILE__, "HTmmdec_base64");
 
-    assert(buf != NULL);
-
     for (bp = buf; *s; s += 4) {
 	val = 0;
 	if (s[2] == '=')
@@ -2362,8 +2349,6 @@ static void HTmmdec_quote(char **t,
 
     if ((buf = typeMallocn(char, strlen(s) + 1)) == 0)
 	  outofmem(__FILE__, "HTmmdec_quote");
-
-    assert(buf != NULL);
 
     for (bp = buf; *s;) {
 	if (*s == '=') {
@@ -2409,8 +2394,6 @@ void HTmmdecode(char **target,
     if ((buf = typeMallocn(char, strlen(source) + 1)) == 0)
 	  outofmem(__FILE__, "HTmmdecode");
 
-    assert(buf != NULL);
-
     for (s = source, u = buf; *s;) {
 	if (!strncasecomp(s, "=?ISO-2022-JP?B?", 16)) {
 	    base64 = 1;
@@ -2449,7 +2432,7 @@ void HTmmdecode(char **target,
 		HTmmdec_base64(&m2buf, mmbuf);
 	    else
 		HTmmdec_quote(&m2buf, mmbuf);
-	    for (t = m2buf; *t;)
+	    for (t = m2buf; non_empty(t);)
 		*u++ = *t++;
 	    HTmmcont = 1;
 	} else {
@@ -2485,8 +2468,6 @@ int HTrjis(char **t,
 
     if ((buf = typeMallocn(char, strlen(s) * 2 + 1)) == 0)
 	  outofmem(__FILE__, "HTrjis");
-
-    assert(buf != NULL);
 
     for (p = buf; *s;) {
 	if (!kanji && s[0] == '$' && (s[1] == '@' || s[1] == 'B')) {

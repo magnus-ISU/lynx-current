@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTGopher.c,v 1.61 2013/11/28 11:12:32 tom Exp $
+ * $LynxId: HTGopher.c,v 1.76 2021/07/25 23:51:30 tom Exp $
  *
  *			GOPHER ACCESS				HTGopher.c
  *			=============
@@ -28,6 +28,7 @@
 #include <HTParse.h>
 #include <HTTCP.h>
 #include <HTFinger.h>
+#include <LYGlobalDefs.h>
 
 /*
  *  Implements.
@@ -139,7 +140,8 @@ typedef struct _CSOformgen_context {	/* For form-based CSO gateway - FM */
 /*	Matrix of allowed characters in filenames
  *	=========================================
  */
-static BOOL acceptable[256];
+static BOOL acceptable_html[256];
+static BOOL acceptable_file[256];
 static BOOL acceptable_inited = NO;
 
 static void init_acceptable(void)
@@ -148,10 +150,17 @@ static void init_acceptable(void)
     const char *good =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./-_$";
 
-    for (i = 0; i < 256; i++)
-	acceptable[i] = NO;
-    for (; *good; good++)
-	acceptable[(unsigned int) *good] = YES;
+    for (i = 0; i < 256; i++) {
+	acceptable_html[i] = NO;
+	acceptable_file[i] = NO;
+    }
+    for (; *good; good++) {
+	acceptable_html[(unsigned int) *good] = YES;
+	acceptable_file[(unsigned int) *good] = YES;
+    }
+    for (good = ";?=#"; *good; ++good) {
+	acceptable_html[(unsigned int) *good] = YES;
+    }
     acceptable_inited = YES;
 }
 
@@ -177,7 +186,7 @@ static char from_hex(int c)
  * On entry,
  *	HT	is in append mode.
  *	text	points to the text to be put into the file, 0 terminated.
- *	addr	points to the hypertext refernce address 0 terminated.
+ *	addr	points to the hypertext reference address 0 terminated.
  */
 BOOLEAN HT_Is_Gopher_URL = FALSE;
 
@@ -212,6 +221,7 @@ static void parse_menu(const char *arg GCC_UNUSED,
 		       HTParentAnchor *anAnchor)
 {
     char gtype;
+    char this_type;
     int ich;
     char line[BIG];
     char *name = NULL, *selector = NULL;	/* Gopher menu fields */
@@ -222,6 +232,7 @@ static void parse_menu(const char *arg GCC_UNUSED,
     int bytes = 0;
     int BytesReported = 0;
     char buffer[128];
+    BOOL *valid_chars;
 
 #define TAB		'\t'
 #define HEX_ESCAPE	'%'
@@ -251,6 +262,7 @@ static void parse_menu(const char *arg GCC_UNUSED,
     PUTC('\n');
     START(HTML_PRE);
     PUTC('\n');			/* newline after HTML_PRE forces split-line */
+    this_type = GOPHER_ERROR;
     while ((ich = NEXT_CHAR) != EOF) {
 
 	if (interrupted_in_htgetcharacter) {
@@ -260,9 +272,33 @@ static void parse_menu(const char *arg GCC_UNUSED,
 	}
 
 	if ((char) ich != LF) {
-	    *p = (char) ich;	/* Put character in line */
-	    if (p < &line[BIG - 1])
-		p++;
+	    const char *ss = NULL;
+
+	    /*
+	     * Help the -source output to look like the HTML equivalent of the
+	     * Gopher menu.
+	     */
+	    if (dump_output_immediately
+		&& HTOutputFormat == HTAtom_for("www/dump")) {
+		if (ich == '<') {
+		    ss = "&lt;";
+		} else if (ich == '>') {
+		    ss = "&gt;";
+		} else if (ich == '&') {
+		    ss = "&amp;";
+		}
+	    }
+	    if (ss != NULL) {
+		if ((p + 5) < &line[BIG - 1]) {
+		    while (*ss != '\0') {
+			*p++ = *ss++;
+		    }
+		}
+	    } else {
+		*p = (char) ich;	/* Put character in line */
+		if (p < &line[BIG - 1])
+		    p++;
+	    }
 
 	} else {
 	    *p++ = '\0';	/* Terminate line */
@@ -333,15 +369,21 @@ static void parse_menu(const char *arg GCC_UNUSED,
 		PUTS("       ");
 		PUTS(name);
 
-	    } else if (port) {	/* Other types need port */
+	    } else if (port &&	/* Other types need port */
+		       (gtype != GOPHER_DUPLICATE ||
+			this_type != GOPHER_ERROR)) {
 		char *address = 0;
 		const char *format = *selector ? "%s//%s@%s/" : "%s//%s/";
 
 		if (gtype == GOPHER_TELNET) {
 		    PUTS(" (TEL) ");
+		    if (*selector == '/')
+			++selector;
 		    HTSprintf0(&address, format, STR_TELNET_URL, selector, host);
 		} else if (gtype == GOPHER_TN3270) {
 		    PUTS("(3270) ");
+		    if (*selector == '/')
+			++selector;
 		    HTSprintf0(&address, format, STR_TN3270_URL, selector, host);
 		} else {	/* If parsed ok */
 		    char *r;
@@ -352,6 +394,9 @@ static void parse_menu(const char *arg GCC_UNUSED,
 			break;
 		    case GOPHER_MENU:
 			PUTS(" (DIR) ");
+			break;
+		    case GOPHER_DUPLICATE:
+			PUTS(" (+++) ");
 			break;
 		    case GOPHER_CSO:
 			PUTS(" (CSO) ");
@@ -398,10 +443,20 @@ static void parse_menu(const char *arg GCC_UNUSED,
 			break;
 		    }
 
-		    HTSprintf0(&address, "//%s/%c", host, gtype);
+		    if (gtype != GOPHER_DUPLICATE)
+			this_type = gtype;
+
+		    HTSprintf0(&address, "//%s/%c", host, this_type);
+		    if (gtype == GOPHER_HTML) {
+			valid_chars = acceptable_html;
+			if (*selector == '/')
+			    ++selector;
+		    } else {
+			valid_chars = acceptable_file;
+		    }
 
 		    for (r = selector; *r; r++) {	/* Encode selector string */
-			if (acceptable[UCH(*r)]) {
+			if (valid_chars[UCH(*r)]) {
 			    HTSprintf(&address, "%c", *r);
 			} else {
 			    HTSprintf(&address, "%c%c%c",
@@ -419,7 +474,8 @@ static void parse_menu(const char *arg GCC_UNUSED,
 		    PUTS(name);
 		FREE(address);
 	    } else {		/* parse error */
-		CTRACE((tfp, "HTGopher: Bad menu item.\n"));
+		CTRACE((tfp, "HTGopher: Bad menu item (type %d, port %s).\n",
+			gtype, NonNull(port)));
 		PUTS(line);
 
 	    }			/* parse error */
@@ -524,7 +580,7 @@ static void parse_cso(const char *arg,
 		 * where # is the search result number and can be multiple
 		 * digits (infinite?).
 		 * Find the second colon and check the digit to the left of it
-		 * to see if they are diferent.  If they are then a different
+		 * to see if they are different.  If they are then a different
 		 * person is starting.  Make this line an <h2>.
 		 */
 
@@ -540,7 +596,7 @@ static void parse_cso(const char *arg,
 		if (second_colon != NULL) {	/* error check */
 
 		    if (*(second_colon - 1) != last_char)
-			/* print seperator */
+			/* print separator */
 		    {
 			END(HTML_PRE);
 			START(HTML_H2);
@@ -568,7 +624,7 @@ static void parse_cso(const char *arg,
 		    PUTC('\n');
 
 		    if (*(second_colon - 1) != last_char)
-			/* end seperator */
+			/* end separator */
 		    {
 			END(HTML_H2);
 			START(HTML_PRE);
@@ -682,7 +738,7 @@ static void display_index(const char *arg,
 /*	De-escape a selector into a command.
  *	====================================
  *
- *	The % hex escapes are converted. Otheriwse, the string is copied.
+ *	The % hex escapes are converted. Otherwise, the string is copied.
  */
 static void de_escape(char *command, const char *selector)
 {
@@ -691,8 +747,6 @@ static void de_escape(char *command, const char *selector)
 
     if (command == NULL)
 	outofmem(__FILE__, "HTLoadGopher");
-
-    assert(command != NULL);
 
     q = command;
     while (*p) {		/* Decode hex */
@@ -962,7 +1016,6 @@ static int parse_cso_fields(char *buf,
 	     * Lines beginning with 5 are errors.  Print them and quit.
 	     */
 	    if (*p == '5') {
-		strcpy(buf, p);
 		return 5;
 	    }
 
@@ -1029,8 +1082,6 @@ static int parse_cso_fields(char *buf,
 			if (!newf) {
 			    outofmem(__FILE__, "HTLoadCSO");
 			}
-
-			assert(newf != NULL);
 
 			if (last)
 			    last->next = newf;
@@ -1155,7 +1206,7 @@ static int generate_cso_form(char *host,
 		    ;
 		}
 		/*
-		 * Save context, interpet command and restore updated context.
+		 * Save context, interpret command and restore updated context.
 		 */
 		ctx.cur_line = i;
 		ctx.cur_off = j;
@@ -1167,7 +1218,7 @@ static int generate_cso_form(char *host,
 
 		if (ctx.seek) {
 		    /*
-		     * Command wants us to skip (forward) to indicated token. 
+		     * Command wants us to skip (forward) to indicated token.
 		     * Start at current position.
 		     */
 		    size_t slen = strlen(ctx.seek);
@@ -1227,7 +1278,7 @@ static int generate_cso_report(HTStream *Target)
     char line[BIG];
     char *buf = 0;
     char *p = line, *href = NULL;
-    int len, i, prev_ndx, ndx;
+    int i, prev_ndx, ndx;
     char *rcode, *ndx_str, *fname, *fvalue, *l;
     CSOfield_info *fld;
     BOOL stop = FALSE;
@@ -1263,16 +1314,14 @@ static int generate_cso_report(HTStream *Target)
 	    }
 	    rcode = (p[0] == '-') ? &p[1] : p;
 	    ndx_str = fname = NULL;
-	    len = (int) strlen(p);
-	    for (i = 0; i < len; i++) {
+	    for (i = 0; p[i] != '\0'; i++) {
 		if (p[i] == ':') {
 		    p[i] = '\0';
-		    if (!ndx_str) {
-			fname = ndx_str = &p[i + 1];
-		    } else {
-			fname = &p[i + 1];
+		    fname = &p[i + 1];
+		    if (ndx_str) {
 			break;
 		    }
+		    ndx_str = fname;
 		}
 	    }
 	    if (ndx_str) {
@@ -1460,7 +1509,7 @@ static int HTLoadCSO(const char *arg,
 	init_acceptable();
 
     if (!arg)
-	return -3;		/* Bad if no name sepcified     */
+	return -3;		/* Bad if no name specified     */
     if (!*arg)
 	return -2;		/* Bad if name had zero length  */
     CTRACE((tfp, "HTLoadCSO: Looking for %s\n", arg));
@@ -1519,7 +1568,7 @@ static int HTLoadCSO(const char *arg,
     Target = HTStreamStack(format_in,
 			   format_out,
 			   sink, anAnchor);
-    if (!Target || Target == NULL) {
+    if (Target == NULL) {
 	char *temp = 0;
 
 	HTSprintf0(&temp, CANNOT_CONVERT_I_TO_O,
@@ -1648,6 +1697,7 @@ static int HTLoadCSO(const char *arg,
 	(*Target->isa->put_block) (Target, buf, (int) strlen(buf));
 	(*Target->isa->_free) (Target);
 	free_CSOfields();
+	BStrFree(command);
 	return HT_LOADED;
     }
     /*
@@ -1690,6 +1740,36 @@ static int HTLoadCSO(const char *arg,
     return HT_LOADED;
 }
 
+static char *link_to_URL(const char *arg)
+{
+    char *result;
+    char *next;
+    char *temp = 0;
+
+    StrAllocCopy(temp, arg);
+    HTUnEscape(temp);
+    result = temp;
+
+    /* skip past method://host */
+    if ((next = strstr(result, "://")) != 0) {
+	result = next + 3;
+    }
+    if ((next = strchr(result, '/')) != 0) {
+	result = next + 1;
+    }
+    /* check if the selector is the special html one */
+    if (!strncmp(result, "hURL:", (size_t) 5)) {
+	result += 5;
+	next = result;
+	result = temp;
+	while ((*temp++ = *next++) != 0) ;
+    } else {
+	FREE(temp);
+	result = 0;
+    }
+    return result;
+}
+
 /*	Load by name.						HTLoadGopher
  *	=============
  *
@@ -1699,6 +1779,7 @@ static int HTLoadGopher(const char *arg,
 			HTFormat format_out,
 			HTStream *sink)
 {
+    char *hURL;
     char *command;		/* The whole command */
     int status;			/* tcp return */
     char gtype;			/* Gopher Node type */
@@ -1708,7 +1789,7 @@ static int HTLoadGopher(const char *arg,
 	init_acceptable();
 
     if (!arg)
-	return -3;		/* Bad if no name sepcified     */
+	return -3;		/* Bad if no name specified     */
     if (!*arg)
 	return -2;		/* Bad if name had zero length  */
     CTRACE((tfp, "HTGopher: Looking for %s\n", arg));
@@ -1774,8 +1855,6 @@ static int HTLoadGopher(const char *arg,
 	    if (command == NULL)
 		outofmem(__FILE__, "HTLoadGopher");
 
-	    assert(command != NULL);
-
 	    de_escape(command, selector);	/* Bug fix TBL 921208 */
 
 	    strcat(command, "\t");
@@ -1810,8 +1889,6 @@ static int HTLoadGopher(const char *arg,
 	    if (command == NULL)
 		outofmem(__FILE__, "HTLoadGopher");
 
-	    assert(command != NULL);
-
 	    de_escape(command, selector);	/* Bug fix TBL 921208 */
 
 	    strcpy(command, "query ");
@@ -1831,8 +1908,6 @@ static int HTLoadGopher(const char *arg,
 	    if (command == NULL)
 		outofmem(__FILE__, "HTLoadGopher");
 
-	    assert(command != NULL);
-
 	    de_escape(command, selector);
 	}
 	FREE(p1);
@@ -1844,6 +1919,13 @@ static int HTLoadGopher(const char *arg,
 	*p++ = CR;		/* Macros to be correct on Mac */
 	*p++ = LF;
 	*p = '\0';
+    }
+    /*
+     * Check for link to URL
+     */
+    if ((hURL = link_to_URL(arg)) != 0) {
+	CTRACE((tfp, "gopher found link to URL '%s'\n", hURL));
+	free(hURL);
     }
 
     /*

@@ -1,6 +1,6 @@
 /*
- * $LynxId: tidy_tls.h,v 1.4 2014/01/11 17:09:33 tom Exp $
- * Copyright 2008-2011,2014 Thomas E. Dickey
+ * $LynxId: tidy_tls.h,v 1.8 2015/10/12 00:28:18 tom Exp $
+ * Copyright 2008-2013,2015 Thomas E. Dickey
  */
 #ifndef TIDY_TLS_H
 #define TIDY_TLS_H
@@ -78,6 +78,11 @@ typedef struct _SSL_CTX {
     int (*verify_callback) (int, X509_STORE_CTX *);
     int verify_mode;
 
+    char *client_certfile;
+    int client_certfile_type;
+    char *client_keyfile;
+    int client_keyfile_type;
+
 } SSL_CTX;
 
 struct _SSL {
@@ -98,6 +103,9 @@ struct _SSL {
 
     gnutls_transport_ptr_t rfd;
     gnutls_transport_ptr_t wfd;
+
+    void *sendbuffer;
+    size_t bytes_sent;
 };
 
 /* use either SSL_VERIFY_NONE or SSL_VERIFY_PEER, the last 2 options

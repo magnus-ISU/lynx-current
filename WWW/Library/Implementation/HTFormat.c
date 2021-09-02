@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTFormat.c,v 1.82 2013/11/28 11:12:32 tom Exp $
+ * $LynxId: HTFormat.c,v 1.91 2019/01/02 23:25:10 tom Exp $
  *
  *		Manage different file formats			HTFormat.c
  *		=============================
@@ -96,7 +96,6 @@ void HTSetPresentation(const char *representation,
     if (pres == NULL)
 	outofmem(__FILE__, "HTSetPresentation");
 
-    assert(pres != NULL);
     assert(representation != NULL);
 
     CTRACE2(TRACE_CFG,
@@ -158,8 +157,6 @@ void HTSetConversion(const char *representation_in,
 
     if (pres == NULL)
 	outofmem(__FILE__, "HTSetConversion");
-
-    assert(pres != NULL);
 
     CTRACE2(TRACE_CFG,
 	    (tfp,
@@ -350,7 +347,9 @@ static int half_match(char *trial_type, char *target)
  */
 static BOOL failsMailcap(HTPresentation *pres, HTParentAnchor *anchor)
 {
-    if (pres->testcommand != 0) {
+    if (pres->testcommand != NULL &&
+	anchor != NULL &&
+	anchor->content_type_params != NULL) {
 	if (LYTestMailcapCommand(pres->testcommand,
 				 anchor->content_type_params) != 0)
 	    return TRUE;
@@ -735,8 +734,8 @@ int HTCopy(HTParentAnchor *anchor,
     HTStreamClass targetClass;
     BOOL suppress_readprogress = NO;
     off_t limit = anchor ? anchor->content_length : 0;
-    off_t bytes = anchor ? anchor->actual_length : 0;
-    off_t total;
+    off_t bytes = 0;
+    off_t header_length = 0;
     int rv = 0;
 
     /*  Push the data down the stream
@@ -776,7 +775,6 @@ int HTCopy(HTParentAnchor *anchor,
 #else
 	status = NETREAD(file_number, input_buffer, INPUT_BUFFER_SIZE);
 #endif /* USE_SSL */
-
 	if (status <= 0) {
 	    if (status == 0) {
 		break;
@@ -869,22 +867,50 @@ int HTCopy(HTParentAnchor *anchor,
 	}
 #endif /* NOT_ASCII */
 
-	total = bytes + status;
-	if (limit == 0 || bytes == 0 || (total < limit)) {
-	    (*targetClass.put_block) (sink, input_buffer, status);
-	} else if (bytes < limit) {
-	    (*targetClass.put_block) (sink, input_buffer, (int) (limit - bytes));
-	}
-	bytes = total;
-	if (!suppress_readprogress)
-	    HTReadProgress(bytes, limit);
-	HTDisplayPartial();
+	header_length = anchor != 0 ? anchor->header_length : 0;
 
+	(*targetClass.put_block) (sink, input_buffer, status);
+	if (anchor != 0 && anchor->inHEAD) {
+	    if (!suppress_readprogress) {
+		statusline(gettext("Reading headers..."));
+	    }
+	    CTRACE((tfp, "HTCopy read %" PRI_off_t " header bytes\n",
+		    CAST_off_t (anchor->header_length)));
+	} else {
+	    /*
+	     * If header-length is increased at this point, that is due to
+	     * HTMIME, which detects the end of the server headers.  There
+	     * may be additional (non-header) data in that block.
+	     */
+	    if (anchor != 0 && (anchor->header_length > header_length)) {
+		int header = (int) (anchor->header_length - header_length);
+
+		CTRACE((tfp, "HTCopy read %" PRI_off_t " header bytes "
+			"(%d extra vs %d total)\n",
+			CAST_off_t (anchor->header_length),
+			header, status));
+		if (status > header) {
+		    bytes += (status - header);
+		}
+	    } else {
+		bytes += status;
+	    }
+	    if (!suppress_readprogress) {
+		HTReadProgress(bytes, limit);
+	    }
+	    HTDisplayPartial();
+	}
+
+	/* a few buggy implementations do not close the connection properly
+	 * and will hang if we try to read past the declared content-length.
+	 */
+	if (limit > 0 && bytes >= limit)
+	    break;
     }				/* next bufferload */
     if (anchor != 0) {
 	CTRACE((tfp, "HTCopy copied %"
 		PRI_off_t " actual, %"
-		PRI_off_t " limit\n", bytes, limit));
+		PRI_off_t " limit\n", CAST_off_t (bytes), CAST_off_t (limit)));
 	anchor->actual_length = bytes;
     }
 
@@ -1869,8 +1895,6 @@ HTStream *HTNetToText(HTStream *sink)
 
     if (me == NULL)
 	outofmem(__FILE__, "NetToText");
-
-    assert(me != NULL);
 
     me->isa = &NetToTextClass;
 

@@ -22,7 +22,7 @@ extern "C" {
  *
  *----------------------------------------------------------------------*/
 
-    void panic(char *format,...);
+    void panic(char *format, ...);
 
 /*----------------------------------------------------------------------*/
 
@@ -251,7 +251,7 @@ extern "C" {
 
 /* for internal error handling */
 
-    extern char *readErrorPosition;	/* pos where buf stoped making sense */
+    extern char *readErrorPosition;	/* pos where buf stopped making sense */
 
 /* the following are macros so that they can return OUT of the function
    which calls them
@@ -310,7 +310,7 @@ extern "C" {
     char *writeString(char *s, data_tag tag, char *buffer, long *len);
     char *readString(char **s, char *buffer);
 
-    bit_map *makeBitMap(unsigned long numBits,...);
+    bit_map *makeBitMap(unsigned long numBits, ...);
 
     void freeBitMap(bit_map *bm);
     boolean bitAtPos(unsigned long pos, bit_map *bm);

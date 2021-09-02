@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTFTP.c,v 1.125 2013/11/28 11:11:05 tom Exp $
+ * $LynxId: HTFTP.c,v 1.142 2020/02/26 23:40:14 tom Exp $
  *
  *			File Transfer Protocol (FTP) Client
  *			for a WorldWideWeb browser
@@ -159,7 +159,7 @@ typedef struct _connection {
 	    tag, \
 	    entry_info->filename, \
 	    NonNull(entry_info->date), \
-	    entry_info->size))
+	    CAST_off_t(entry_info->size)))
 
 struct _HTStructured {
     const HTStructuredClass *isa;
@@ -233,11 +233,11 @@ static PortNumber port_number = FIRST_TCP_PORT;
 #endif /* POLL_PORTS */
 
 static BOOL have_socket = FALSE;	/* true if master_socket is valid */
-static unsigned master_socket;	/* Listening socket = invalid */
+static LYNX_FD master_socket;	/* Listening socket = invalid */
 
-static char port_command[255];	/* Command for setting the port */
+static char *port_command;	/* Command for setting the port */
 static fd_set open_sockets;	/* Mask of active channels */
-static unsigned num_sockets;	/* Number of sockets to scan */
+static LYNX_FD num_sockets;	/* Number of sockets to scan */
 static PortNumber passive_port;	/* Port server specified for data */
 
 #define NEXT_CHAR HTGetCharacter()	/* Use function in HTFormat.c */
@@ -308,9 +308,6 @@ char *HTVMS_name(const char *nn,
 
     if (!filename || !nodename)
 	outofmem(__FILE__, "HTVMSname");
-
-    assert(filename != NULL);
-    assert(nodename != NULL);
 
     strcpy(filename, fn);
     strcpy(nodename, "");	/* On same node?  Yes if node names match */
@@ -823,8 +820,6 @@ static int get_connection(const char *arg,
 	con = typecalloc(connection);
 	if (con == NULL)
 	    outofmem(__FILE__, "get_connection");
-
-	assert(con != NULL);
     }
     con->socket = -1;
 
@@ -875,7 +870,7 @@ static int get_connection(const char *arg,
 		    HTSprintf0(&tmp, gettext("Enter password for user %s@%s:"),
 			       username, p1);
 		    FREE(user_entered_password);
-		    user_entered_password = HTPromptPassword(tmp);
+		    user_entered_password = HTPromptPassword(tmp, NULL);
 
 		}		/* else we already know the password */
 		password = user_entered_password;
@@ -923,7 +918,7 @@ static int get_connection(const char *arg,
 
     /*  Now we log in           Look up username, prompt for pw.
      */
-    status = response((char *) 0);	/* Get greeting */
+    status = response(NULL);	/* Get greeting */
     CheckForInterrupt("at beginning of login");
 
     server_type = GENERIC_SERVER;	/* reset */
@@ -1118,7 +1113,7 @@ static void set_master_socket(int value)
 {
     have_socket = (BOOLEAN) (value >= 0);
     if (have_socket)
-	master_socket = (unsigned) value;
+	master_socket = (LYNX_FD) value;
 }
 
 /*	Close Master (listening) socket
@@ -1134,7 +1129,7 @@ static int close_master_socket(void)
 	FD_CLR(master_socket, &open_sockets);
 
     status = NETCLOSE((int) master_socket);
-    CTRACE((tfp, "HTFTP: Closed master socket %u\n", master_socket));
+    CTRACE((tfp, "HTFTP: Closed master socket %u\n", (unsigned) master_socket));
 
     reset_master_socket();
 
@@ -1161,21 +1156,18 @@ static int close_master_socket(void)
  */
 static int get_listen_socket(void)
 {
-#ifdef INET6
-    struct sockaddr_storage soc_address;	/* Binary network address */
-    struct sockaddr_in *soc_in = (struct sockaddr_in *) &soc_address;
-    int af;
-    LY_SOCKLEN slen;
+    LY_SOCKADDR soc_A;
 
-#else
-    struct sockaddr_in soc_address;	/* Binary network address */
-    struct sockaddr_in *soc_in = &soc_address;
+#ifdef INET6
+    unsigned short af;
+    LY_SOCKLEN slen;
 #endif /* INET6 */
     int new_socket;		/* Will be master_socket */
 
     FD_ZERO(&open_sockets);	/* Clear our record of open sockets */
     num_sockets = 0;
 
+    FREE(port_command);
 #ifndef REPEAT_LISTEN
     if (have_socket)
 	return master_socket;	/* Done already */
@@ -1183,13 +1175,12 @@ static int get_listen_socket(void)
 
 #ifdef INET6
     /* query address family of control connection */
-    slen = (LY_SOCKLEN) sizeof(soc_address);
-    if (getsockname(control->socket, (struct sockaddr *) &soc_address,
-		    &slen) < 0) {
+    slen = (LY_SOCKLEN) sizeof(soc_A);
+    if (getsockname(control->socket, SOCKADDR_OF(soc_A), &slen) < 0) {
 	return HTInetStatus("getsockname failed");
     }
-    af = ((struct sockaddr *) &soc_address)->sa_family;
-    memset(&soc_address, 0, sizeof(soc_address));
+    af = SOCKADDR_OF(soc_A)->sa_family;
+    memset(&soc_A, 0, sizeof(soc_A));
 #endif /* INET6 */
 
 /*  Create internet socket
@@ -1208,25 +1199,25 @@ static int get_listen_socket(void)
 /*  Search for a free port.
 */
 #ifdef INET6
-    memset(&soc_address, 0, sizeof(soc_address));
-    ((struct sockaddr *) &soc_address)->sa_family = af;
+    memset(&soc_A, 0, sizeof(soc_A));
+    SOCKADDR_OF(soc_A)->sa_family = (unsigned short) af;
     switch (af) {
     case AF_INET:
 #ifdef SIN6_LEN
-	((struct sockaddr *) &soc_address)->sa_len = sizeof(struct sockaddr_in);
+	SOCKADDR_OF(soc_A)->sa_len = sizeof(struct sockaddr_in);
 #endif /* SIN6_LEN */
 	break;
     case AF_INET6:
 #ifdef SIN6_LEN
-	((struct sockaddr *) &soc_address)->sa_len = sizeof(struct sockaddr_in6);
+	SOCKADDR_OF(soc_A)->sa_len = sizeof(struct sockaddr_in6);
 #endif /* SIN6_LEN */
 	break;
     default:
 	HTInetStatus("AF");
     }
 #else
-    soc_in->sin_family = AF_INET;	/* Family = internet, host order  */
-    soc_in->sin_addr.s_addr = INADDR_ANY;	/* Any peer address */
+    soc_A.soc_in.sin_family = AF_INET;	/* Family = internet, host order  */
+    soc_A.soc_in.sin_addr.s_addr = INADDR_ANY;	/* Any peer address */
 #endif /* INET6 */
 #ifdef POLL_PORTS
     {
@@ -1241,27 +1232,21 @@ static int get_listen_socket(void)
 		return HTInetStatus("bind");
 	    }
 #ifdef INET6
-	    soc_in->sin_port = htons(port_number);
+	    soc_A.soc_in.sin_port = htons(port_number);
 #else
-	    soc_address.sin_port = htons(port_number);
+	    soc_A.sin_port = htons(port_number);
 #endif /* INET6 */
 #ifdef SOCKS
 	    if (socks_flag)
 		if ((status = Rbind(new_socket,
-				    (struct sockaddr *) &soc_address,
-		/* Cast to generic sockaddr */
-				    SOCKADDR_LEN(soc_address)
-#ifndef SHORTENED_RBIND
-				    ,socks_bind_remoteAddr
-#endif /* !SHORTENED_RBIND */
-		     )) == 0) {
+				    SOCKADDR_OF(soc_A),
+				    SOCKADDR_LEN(soc_A))) == 0) {
 		    break;
 		} else
 #endif /* SOCKS */
 		    if ((status = bind(new_socket,
-				       (struct sockaddr *) &soc_address,
-		    /* Cast to generic sockaddr */
-				       SOCKADDR_LEN(soc_address)
+				       SOCKADDR_OF(soc_A),
+				       SOCKADDR_LEN(soc_A)
 			 )) == 0) {
 		    break;
 		}
@@ -1272,65 +1257,51 @@ static int get_listen_socket(void)
 #else
     {
 	int status;
-	LY_SOCKLEN address_length = (LY_SOCKLEN) sizeof(soc_address);
+	LY_SOCKLEN address_length = (LY_SOCKLEN) sizeof(soc_A);
 
 #ifdef SOCKS
 	if (socks_flag)
 	    status = Rgetsockname(control->socket,
-				  (struct sockaddr *) &soc_address,
+				  SOCKADDR_OF(soc_A),
 				  &address_length);
 	else
 #endif /* SOCKS */
 	    status = getsockname(control->socket,
-				 (struct sockaddr *) &soc_address,
+				 SOCKADDR_OF(soc_A),
 				 &address_length);
 	if (status < 0) {
 	    close(new_socket);
 	    return HTInetStatus("getsockname");
 	}
-#ifdef INET6
 	CTRACE((tfp, "HTFTP: This host is %s\n",
-		HTInetString((void *) soc_in)));
+		HTInetString((void *) &soc_A.soc_in)));
 
-	soc_in->sin_port = 0;	/* Unspecified: please allocate */
-#else
-	CTRACE((tfp, "HTFTP: This host is %s\n",
-		HTInetString(soc_in)));
-
-	soc_address.sin_port = 0;	/* Unspecified: please allocate */
-#endif /* INET6 */
+	soc_A.soc_in.sin_port = 0;	/* Unspecified: please allocate */
 #ifdef SOCKS
 	if (socks_flag)
 	    status = Rbind(new_socket,
-			   (struct sockaddr *) &soc_address,
-	    /* Cast to generic sockaddr */
-			   sizeof(soc_address)
-#ifndef SHORTENED_RBIND
-			   ,socks_bind_remoteAddr
-#endif /* !SHORTENED_RBIND */
-		);
+			   SOCKADDR_OF(soc_A),
+			   sizeof(soc_A));
 	else
 #endif /* SOCKS */
 	    status = bind(new_socket,
-			  (struct sockaddr *) &soc_address,
-	    /* Cast to generic sockaddr */
-			  SOCKADDR_LEN(soc_address)
-		);
+			  SOCKADDR_OF(soc_A),
+			  SOCKADDR_LEN(soc_A));
 	if (status < 0) {
 	    close(new_socket);
 	    return HTInetStatus("bind");
 	}
 
-	address_length = sizeof(soc_address);
+	address_length = sizeof(soc_A);
 #ifdef SOCKS
 	if (socks_flag)
 	    status = Rgetsockname(new_socket,
-				  (struct sockaddr *) &soc_address,
+				  SOCKADDR_OF(soc_A),
 				  &address_length);
 	else
 #endif /* SOCKS */
 	    status = getsockname(new_socket,
-				 (struct sockaddr *) &soc_address,
+				 SOCKADDR_OF(soc_A),
 				 &address_length);
 	if (status < 0) {
 	    close(new_socket);
@@ -1339,15 +1310,9 @@ static int get_listen_socket(void)
     }
 #endif /* POLL_PORTS */
 
-#ifdef INET6
     CTRACE((tfp, "HTFTP: bound to port %d on %s\n",
-	    (int) ntohs(soc_in->sin_port),
-	    HTInetString((void *) soc_in)));
-#else
-    CTRACE((tfp, "HTFTP: bound to port %d on %s\n",
-	    (int) ntohs(soc_in->sin_port),
-	    HTInetString(soc_in)));
-#endif /* INET6 */
+	    (int) ntohs(soc_A.soc_in.sin_port),
+	    HTInetString((void *) &soc_A.soc_in)));
 
 #ifdef REPEAT_LISTEN
     if (have_socket)
@@ -1360,17 +1325,17 @@ static int get_listen_socket(void)
 */
     (void) HTHostName();	/* Make address valid - doesn't work */
 #ifdef INET6
-    switch (((struct sockaddr *) &soc_address)->sa_family) {
+    switch (SOCKADDR_OF(soc_A)->sa_family) {
     case AF_INET:
 #endif /* INET6 */
-	sprintf(port_command, "PORT %d,%d,%d,%d,%d,%d%c%c",
-		(int) *((unsigned char *) (&soc_in->sin_addr) + 0),
-		(int) *((unsigned char *) (&soc_in->sin_addr) + 1),
-		(int) *((unsigned char *) (&soc_in->sin_addr) + 2),
-		(int) *((unsigned char *) (&soc_in->sin_addr) + 3),
-		(int) *((unsigned char *) (&soc_in->sin_port) + 0),
-		(int) *((unsigned char *) (&soc_in->sin_port) + 1),
-		CR, LF);
+	HTSprintf0(&port_command, "PORT %d,%d,%d,%d,%d,%d%c%c",
+		   (int) *((unsigned char *) (&soc_A.soc_in.sin_addr) + 0),
+		   (int) *((unsigned char *) (&soc_A.soc_in.sin_addr) + 1),
+		   (int) *((unsigned char *) (&soc_A.soc_in.sin_addr) + 2),
+		   (int) *((unsigned char *) (&soc_A.soc_in.sin_addr) + 3),
+		   (int) *((unsigned char *) (&soc_A.soc_in.sin_port) + 0),
+		   (int) *((unsigned char *) (&soc_A.soc_in.sin_port) + 1),
+		   CR, LF);
 
 #ifdef INET6
 	break;
@@ -1380,22 +1345,24 @@ static int get_listen_socket(void)
 	    char hostbuf[MAXHOSTNAMELEN];
 	    char portbuf[MAXHOSTNAMELEN];
 
-	    getnameinfo((struct sockaddr *) &soc_address,
-			SOCKADDR_LEN(soc_address),
+	    getnameinfo(SOCKADDR_OF(soc_A),
+			SOCKADDR_LEN(soc_A),
 			hostbuf,
 			(socklen_t) sizeof(hostbuf),
 			portbuf,
 			(socklen_t) sizeof(portbuf),
 			NI_NUMERICHOST | NI_NUMERICSERV);
-	    sprintf(port_command, "EPRT |%d|%s|%s|%c%c", 2, hostbuf, portbuf,
-		    CR, LF);
+	    HTSprintf0(&port_command, "EPRT |%d|%s|%s|%c%c", 2, hostbuf, portbuf,
+		       CR, LF);
 	    break;
 	}
     default:
-	sprintf(port_command, "JUNK%c%c", CR, LF);
+	HTSprintf0(&port_command, "JUNK%c%c", CR, LF);
 	break;
     }
 #endif /* INET6 */
+    if (port_command == NULL)
+	return -1;
 
     /*  Inform TCP that we will accept connections
      */
@@ -1458,10 +1425,10 @@ static void set_years_and_date(void)
 	}
     }
     i++;
-    sprintf(date, "9999%02d%.2s", i, day);
+    sprintf(date, "9999%02d%.2s", i % 100, day);
     TheDate = atoi(date);
     LYStrNCpy(ThisYear, printable + 20, 4);
-    sprintf(LastYear, "%d", (atoi(ThisYear) - 1));
+    sprintf(LastYear, "%d", (atoi(ThisYear) - 1) % 10000);
     HaveYears = TRUE;
 }
 
@@ -1483,12 +1450,17 @@ typedef struct _EntryInfo {
 static void free_entryinfo_struct_contents(EntryInfo *entry_info)
 {
     if (entry_info) {
+#ifdef LONG_LIST
+	FREE(entry_info->file_mode);
+	FREE(entry_info->file_user);
+	FREE(entry_info->file_group);
+#endif
 	FREE(entry_info->filename);
 	FREE(entry_info->linkname);
 	FREE(entry_info->type);
 	FREE(entry_info->date);
     }
-    /* dont free the struct */
+    /* don't free the struct */
 }
 
 /*
@@ -2283,8 +2255,6 @@ static EntryInfo *parse_dir_entry(char *entry,
     if (entry_info == NULL)
 	outofmem(__FILE__, "parse_dir_entry");
 
-    assert(entry_info != NULL);
-
     entry_info->display = TRUE;
 
     switch (server_type) {
@@ -2331,6 +2301,7 @@ static EntryInfo *parse_dir_entry(char *entry,
 	    break;
 	}
 	/* fall through if server_type changed for *first == TRUE ! */
+	/* FALLTHRU */
     case UNIX_SERVER:
     case PETER_LEWIS_SERVER:
     case MACHTEN_SERVER:
@@ -2562,7 +2533,7 @@ static EntryInfo *parse_dir_entry(char *entry,
 	    if ((server_type != UNIX_SERVER) ||
 		(cp > (entry_info->filename + 3) &&
 		 0 == strncasecomp((cp - 4), "read.me", 7))) {
-		StrAllocCopy(entry_info->type, "text/plain");
+		StrAllocCopy(entry_info->type, STR_PLAINTEXT);
 	    }
 	}
     }
@@ -2618,7 +2589,7 @@ static void formatDate(char target[16], EntryInfo *entry)
 	}
     }
     i++;
-    sprintf(month, "%02d", i);
+    sprintf(month, "%02d", i % 100);
     strcat(target, month);
     StrNCat(target, &entry->date[4], 2);
     if (target[6] == ' ' || target[6] == HT_NON_BREAK_SPACE) {
@@ -2713,11 +2684,12 @@ static char *FormatSize(char **bufp,
     char fmt[512];
 
     if (*start) {
-	sprintf(fmt, "%%%.*s" PRI_off_t, (int) sizeof(fmt) - 3, start);
+	sprintf(fmt, "%%%.*s" PRI_off_t,
+		  (int) sizeof(fmt) - DigitsOf(start) - 3, start);
 
 	HTSprintf(bufp, fmt, value);
     } else {
-	sprintf(fmt, "%" PRI_off_t, value);
+	sprintf(fmt, "%" PRI_off_t, CAST_off_t (value));
 
 	StrAllocCat(*bufp, fmt);
     }
@@ -2731,7 +2703,8 @@ static char *FormatNum(char **bufp,
     char fmt[512];
 
     if (*start) {
-	sprintf(fmt, "%%%.*sld", (int) sizeof(fmt) - 3, start);
+	sprintf(fmt, "%%%.*sld",
+		(int) sizeof(fmt) - DigitsOf(start) - 3, start);
 	HTSprintf(bufp, fmt, value);
     } else {
 	sprintf(fmt, "%lu", value);
@@ -3236,7 +3209,7 @@ static int read_directory(HTParentAnchor *parent,
 
     if (WasInterrupted || data_soc != -1) {	/* should always be true */
 	/*
-	 * Without closing the data socket first, the response(0) later may
+	 * Without closing the data socket first, the response(NULL) later may
 	 * hang.  Some servers expect the client to fin/ack the close of the
 	 * data connection before proceeding with the conversation on the
 	 * control connection.  - kw
@@ -3301,6 +3274,7 @@ static int setup_connection(const char *name,
 	    /*  Inform the server of the port number we will listen on
 	     */
 	    status = response(port_command);
+	    FREE(port_command);
 	    if (status == HT_INTERRUPTED) {
 		CTRACE((tfp, "HTFTP: Interrupted in response (port_command)\n"));
 		_HTProgress(CONNECTION_INTERRUPTED);
@@ -3366,7 +3340,7 @@ static int setup_connection(const char *name,
 		sprintf(dst, "%d.%d.%d.%d", h0, h1, h2, h3);
 	    } else if (strcmp(p, "EPSV") == 0) {
 		char c0, c1, c2, c3;
-		struct sockaddr_storage ss;
+		LY_SOCKADDR ss;
 		LY_SOCKLEN sslen;
 
 		/*
@@ -3389,13 +3363,12 @@ static int setup_connection(const char *name,
 		passive_port = (PortNumber) p0;
 
 		sslen = (LY_SOCKLEN) sizeof(ss);
-		if (getpeername(control->socket, (struct sockaddr *) &ss,
-				&sslen) < 0) {
+		if (getpeername(control->socket, SOCKADDR_OF(ss), &sslen) < 0) {
 		    fprintf(tfp, "HTFTP: getpeername(control) failed\n");
 		    status = HT_NO_CONNECTION;
 		    break;
 		}
-		if (getnameinfo((struct sockaddr *) &ss,
+		if (getnameinfo(SOCKADDR_OF(ss),
 				sslen,
 				dst,
 				(socklen_t) sizeof(dst),
@@ -3958,12 +3931,22 @@ int HTFTPLoad(const char *name,
 	     */
 	    if (control->is_binary) {
 		int code;
-		off_t size;
 
 		status = send_cmd_2("SIZE", filename);
-		if (status == 2 &&
-		    sscanf(response_text, "%d %" PRI_off_t, &code, &size) == 2) {
-		    anchor->content_length = size;
+		if (status == 2) {
+#if !defined(HAVE_LONG_LONG) && defined(GUESS_PRI_off_t)
+		    long size;
+
+		    if (sscanf(response_text, "%d %ld", &code, &size) == 2) {
+			anchor->content_length = (off_t) size;
+		    }
+#else
+		    off_t size;
+		    if (sscanf(response_text, "%d %" SCN_off_t, &code, &size)
+			== 2) {
+			anchor->content_length = size;
+		    }
+#endif
 		}
 	    }
 	    status = send_cmd_2("RETR", filename);
@@ -4012,23 +3995,18 @@ int HTFTPLoad(const char *name,
   listen:
     if (!ftp_local_passive) {
 	/* Wait for the connection */
-#ifdef INET6
-	struct sockaddr_storage soc_address;
-
-#else
-	struct sockaddr_in soc_address;
-#endif /* INET6 */
-	LY_SOCKLEN soc_addrlen = (LY_SOCKLEN) sizeof(soc_address);
+	LY_SOCKADDR soc_A;
+	LY_SOCKLEN soc_addrlen = (LY_SOCKLEN) sizeof(soc_A);
 
 #ifdef SOCKS
 	if (socks_flag)
 	    status = Raccept((int) master_socket,
-			     (struct sockaddr *) &soc_address,
+			     SOCKADDR_OF(soc_A),
 			     &soc_addrlen);
 	else
 #endif /* SOCKS */
 	    status = accept((int) master_socket,
-			    (struct sockaddr *) &soc_address,
+			    SOCKADDR_OF(soc_A),
 			    &soc_addrlen);
 	if (status < 0) {
 	    init_help_message_cache();	/* to free memory */
@@ -4049,7 +4027,7 @@ int HTFTPLoad(const char *name,
 	if (final_status > 0) {
 	    if (server_type != CMS_SERVER)
 		if (outstanding-- > 0) {
-		    status = response(0);
+		    status = response(NULL);
 		    if (status < 0 ||
 			(status == 2 && !StrNCmp(response_text, "221", 3)))
 			outstanding = 0;
@@ -4141,7 +4119,7 @@ int HTFTPLoad(const char *name,
 	    (void) HTInetStatus("close");	/* Comment only */
 	} else {
 	    if (rv != HT_LOADED && outstanding--) {
-		status = response(0);	/* Pick up final reply */
+		status = response(NULL);	/* Pick up final reply */
 		if (status != 2 && rv != HT_INTERRUPTED && rv != -1) {
 		    data_soc = -1;	/* invalidate it */
 		    init_help_message_cache();	/* to free memory */
@@ -4155,7 +4133,7 @@ int HTFTPLoad(const char *name,
     }
     while (outstanding-- > 0 &&
 	   (status > 0)) {
-	status = response(0);
+	status = response(NULL);
 	if (status == 2 && !StrNCmp(response_text, "221", 3))
 	    break;
     }

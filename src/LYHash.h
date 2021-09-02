@@ -1,4 +1,4 @@
-/* $LynxId: LYHash.h,v 1.25 2011/06/06 09:28:19 tom Exp $ */
+/* $LynxId: LYHash.h,v 1.40 2018/03/10 01:47:33 tom Exp $ */
 #ifndef _LYHASH_H_
 #define _LYHASH_H_ 1
 
@@ -9,37 +9,25 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-    /* define OMIT_SCN_KEEPING to 1 to omit keeping of Style_className
-     * in HTML.c when lss support is on. 1 to increase performance.
-     */
-#define OMIT_SCN_KEEPING 0
-    struct _hashbucket {
+    typedef struct {
 	char *name;		/* name of this item */
-	int code;		/* code of this item */
+	BOOL used;		/* color/attributes have been assigned */
 	int color;		/* color highlighting to be done */
 	int mono;		/* mono highlighting to be done */
 	int cattr;		/* attributes to go with the color */
-	struct _hashbucket *next;	/* next item */
-    };
+    } bucket;
 
-    typedef struct _hashbucket bucket;
-
-#ifndef CSHASHSIZE
-#define CSHASHSIZE 8193
-#endif
+#define CSHASHSIZE 9973		/* Arbitrary prime.  Memory/speed tradeoff */
 
 #define NOSTYLE -1
 
-    /* hashStyles[] is used in CTRACE when NOSTYLE is passed as 'style' to
-     * curses_w_style
-     */
     extern bucket hashStyles[CSHASHSIZE];
-    extern int hash_code(const char *string);
     extern bucket *nostyle_bucket(void);
 
-    extern int hash_code_lowercase_on_fly(const char *string);
-    extern int hash_code_aggregate_char(int c, int hash);
-    extern int hash_code_aggregate_lower_str(const char *c, int hash_was);
+    extern int color_style_1(const char *string);
+    extern int color_style_3(const char *p, const char *q, const char *r);
+    extern void free_hashStyles(void);
+    extern void report_hashStyles(void);
 
     extern int s_a;
     extern int s_aedit;
@@ -71,10 +59,6 @@ extern "C" {
     extern int s_sb_bar;
     extern int s_sb_bg;
     extern int s_sb_naa;
-#endif
-
-#if OMIT_SCN_KEEPING
-    extern bucket *special_bucket(void);
 #endif
 
 #ifdef __cplusplus

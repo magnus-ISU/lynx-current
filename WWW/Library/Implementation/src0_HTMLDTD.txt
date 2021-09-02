@@ -1,4 +1,4 @@
-59 attr_types
+60 attr_types
 	0:align
 		1 attributes:
 			0:0:ALIGN
@@ -217,7 +217,10 @@
 	27:GEN
 		1 attributes:
 			0:0:CLEAR
-	28:H
+	28:GEN5
+		1 attributes:
+			0:0:ROLE
+	29:H
 		7 attributes:
 			0:0:CLEAR
 			1:0:DINGBAT
@@ -226,7 +229,7 @@
 			4:0:SEQNUM
 			5:0:SKIP
 			6:2:SRC
-	29:HR
+	30:HR
 		6 attributes:
 			0:0:CLEAR
 			1:0:MD
@@ -234,7 +237,7 @@
 			3:0:SIZE
 			4:2:SRC
 			5:0:WIDTH
-	30:IFRAME
+	31:IFRAME
 		9 attributes:
 			0:0:FRAMEBORDER
 			1:0:HEIGHT
@@ -245,7 +248,7 @@
 			6:0:SCROLLING
 			7:2:SRC
 			8:0:WIDTH
-	31:IMG
+	32:IMG
 		15 attributes:
 			0:0:ALT
 			1:0:BORDER
@@ -262,7 +265,7 @@
 			12:2:USEMAP
 			13:0:VSPACE
 			14:0:WIDTH
-	32:INPUT
+	33:INPUT
 		28 attributes:
 			0:0:ACCEPT
 			1:0:ACCEPT-CHARSET
@@ -292,23 +295,23 @@
 			25:0:USEMAP
 			26:0:VALUE
 			27:0:WIDTH
-	33:ISINDEX
+	34:ISINDEX
 		3 attributes:
 			0:2:ACTION
 			1:2:HREF
 			2:0:PROMPT
-	34:KEYGEN
+	35:KEYGEN
 		2 attributes:
 			0:0:CHALLENGE
 			1:0:NAME
-	35:LABEL
+	36:LABEL
 		5 attributes:
 			0:0:ACCESSKEY
 			1:0:CLEAR
 			2:0:FOR
 			3:0:ONBLUR
 			4:0:ONFOCUS
-	36:LI
+	37:LI
 		7 attributes:
 			0:0:CLEAR
 			1:0:DINGBAT
@@ -317,7 +320,7 @@
 			4:2:SRC
 			5:0:TYPE
 			6:0:VALUE
-	37:LINK
+	38:LINK
 		8 attributes:
 			0:0:CHARSET
 			1:2:HREF
@@ -327,31 +330,31 @@
 			5:0:REV
 			6:0:TARGET
 			7:0:TYPE
-	38:MAP
+	39:MAP
 		2 attributes:
 			0:0:CLEAR
 			1:1:NAME
-	39:MATH
+	40:MATH
 		2 attributes:
 			0:0:BOX
 			1:0:CLEAR
-	40:META
+	41:META
 		5 attributes:
 			0:0:CHARSET
 			1:0:CONTENT
 			2:0:HTTP-EQUIV
 			3:0:NAME
 			4:0:SCHEME
-	41:NEXTID
+	42:NEXTID
 		1 attributes:
 			0:0:N
-	42:NOTE
+	43:NOTE
 		4 attributes:
 			0:0:CLEAR
 			1:0:MD
 			2:8:ROLE
 			3:2:SRC
-	43:OBJECT
+	44:OBJECT
 		19 attributes:
 			0:0:ARCHIVE
 			1:0:BORDER
@@ -372,7 +375,7 @@
 			16:2:USEMAP
 			17:0:VSPACE
 			18:0:WIDTH
-	44:OL
+	45:OL
 		6 attributes:
 			0:0:CLEAR
 			1:0:COMPACT
@@ -380,7 +383,7 @@
 			3:0:SEQNUM
 			4:0:START
 			5:0:TYPE
-	45:OPTION
+	46:OPTION
 		7 attributes:
 			0:0:CLEAR
 			1:0:DISABLED
@@ -389,7 +392,7 @@
 			4:0:SELECTED
 			5:0:SHAPE
 			6:0:VALUE
-	46:OVERLAY
+	47:OVERLAY
 		8 attributes:
 			0:0:HEIGHT
 			1:0:IMAGEMAP
@@ -399,11 +402,11 @@
 			5:0:WIDTH
 			6:0:X
 			7:0:Y
-	47:P
+	48:P
 		2 attributes:
 			0:0:CLEAR
 			1:0:NOWRAP
-	48:PARAM
+	49:PARAM
 		12 attributes:
 			0:0:ACCEPT
 			1:0:ACCEPT-CHARSET
@@ -417,11 +420,11 @@
 			9:0:VALUE
 			10:0:VALUEREF
 			11:0:VALUETYPE
-	49:Q
+	50:Q
 		2 attributes:
 			0:2:CITE
 			1:0:CLEAR
-	50:SCRIPT
+	51:SCRIPT
 		10 attributes:
 			0:0:CHARSET
 			1:0:CLEAR
@@ -433,7 +436,7 @@
 			7:0:SCRIPTENGINE
 			8:2:SRC
 			9:0:TYPE
-	51:SELECT
+	52:SELECT
 		15 attributes:
 			0:0:CLEAR
 			1:0:DISABLED
@@ -450,18 +453,18 @@
 			12:0:TABINDEX
 			13:0:UNITS
 			14:0:WIDTH
-	52:STYLE
+	53:STYLE
 		3 attributes:
 			0:0:MEDIA
 			1:0:NOTATION
 			2:0:TYPE
-	53:TAB
+	54:TAB
 		4 attributes:
 			0:0:CLEAR
 			1:0:DP
 			2:0:INDENT
 			3:0:TO
-	54:TABLE
+	55:TABLE
 		15 attributes:
 			0:2:BACKGROUND
 			1:0:BORDER
@@ -478,7 +481,7 @@
 			12:0:SUMMARY
 			13:0:UNITS
 			14:0:WIDTH
-	55:TD
+	56:TD
 		13 attributes:
 			0:0:ABBR
 			1:0:AXES
@@ -493,7 +496,7 @@
 			10:0:ROWSPAN
 			11:0:SCOPE
 			12:0:WIDTH
-	56:TEXTAREA
+	57:TEXTAREA
 		15 attributes:
 			0:0:ACCEPT-CHARSET
 			1:0:ACCESSKEY
@@ -510,12 +513,12 @@
 			12:0:READONLY
 			13:0:ROWS
 			14:0:TABINDEX
-	57:TR
+	58:TR
 		3 attributes:
 			0:0:CLEAR
 			1:0:DP
 			2:0:NOWRAP
-	58:UL
+	59:UL
 		8 attributes:
 			0:0:CLEAR
 			1:0:COMPACT
@@ -525,7 +528,7 @@
 			5:2:SRC
 			6:0:TYPE
 			7:0:WRAP
-118 tags
+128 tags
 	0:A
 		justify
 		25 attributes:
@@ -632,8 +635,8 @@
 		tagclass: DIVlike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike Plike BRlike APPLETlike HRlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike formula Plike DIVlike same
 		flags:
 	4:APPLET
@@ -703,7 +706,53 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike LIlike ULlike
 		flags: endO
-	6:AU
+	6:ARTICLE
+		justify
+		7 attributes:
+			0:4:CLASS
+			1:0:DIR
+			2:1:ID
+			3:0:LANG
+			4:0:ROLE
+			5:0:STYLE
+			6:0:TITLE
+		4 attr_types
+			core
+			events
+			i18n
+			GEN5
+		contents: SGML_MIXED
+		tagclass: DIVlike
+		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
+		contained: TRlike FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
+		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
+		flags: mafse
+	7:ASIDE
+		justify
+		7 attributes:
+			0:4:CLASS
+			1:0:DIR
+			2:1:ID
+			3:0:LANG
+			4:0:ROLE
+			5:0:STYLE
+			6:0:TITLE
+		4 attr_types
+			core
+			events
+			i18n
+			GEN5
+		contents: SGML_MIXED
+		tagclass: DIVlike
+		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
+		contained: TRlike FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
+		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
+		flags: mafse
+	8:AU
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -726,7 +775,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike EMlike
 		flags:
-	7:AUTHOR
+	9:AUTHOR
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -749,7 +798,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike EMlike
 		flags:
-	8:B
+	10:B
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -772,7 +821,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags: mafse nreie
-	9:BANNER
+	11:BANNER
 		nojustify
 		7 attributes:
 			0:4:CLASS
@@ -791,11 +840,11 @@
 		tagclass: DIVlike
 		contains: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike
-		contained: outer BODYlike
-		icontained: outer BODYlike
+		contained: outer BODYlike DELlike
+		icontained: outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
 		flags:
-	10:BASE
+	12:BASE
 		justify
 		6 attributes:
 			0:4:CLASS
@@ -815,7 +864,7 @@
 		icontained: outer HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike same
 		flags: endO
-	11:BASEFONT
+	13:BASEFONT
 		justify
 		11 attributes:
 			0:4:CLASS
@@ -841,7 +890,7 @@
 		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
 		canclose: BRlike APPLETlike HRlike MAPlike same
 		flags: endO
-	12:BDO
+	14:BDO
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -860,11 +909,11 @@
 		tagclass: Plike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike Plike DIVlike
 		flags:
-	13:BGSOUND
+	15:BGSOUND
 		justify
 		9 attributes:
 			0:4:CLASS
@@ -888,7 +937,7 @@
 		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike Plike DIVlike BRlike APPLETlike HRlike same
 		flags: endO
-	14:BIG
+	16:BIG
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -911,7 +960,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags: mafse nreie
-	15:BLINK
+	17:BLINK
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -934,7 +983,7 @@
 		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags: mafse nreie
-	16:BLOCKQUOTE
+	18:BLOCKQUOTE
 		justify
 		9 attributes:
 			0:2:CITE
@@ -954,11 +1003,11 @@
 		tagclass: DIVlike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike same
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same
-		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
 		flags:
-	17:BODY
+	19:BODY
 		justify
 		15 attributes:
 			0:0:ALINK
@@ -983,13 +1032,13 @@
 			BODY
 		contents: SGML_MIXED
 		tagclass: BODYlike
-		contains: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike
-		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike
+		contains: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike DELlike
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike DELlike
 		contained: outer BODYlike
 		icontained: outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer HEADstuff same
 		flags: endO startO
-	18:BODYTEXT
+	20:BODYTEXT
 		justify
 		14 attributes:
 			0:4:CLASS
@@ -1012,13 +1061,13 @@
 			BODYTEXT
 		contents: SGML_MIXED
 		tagclass: BODYlike
-		contains: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike
-		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike same
+		contains: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike DELlike
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike same DELlike
 		contained: DIVlike outer BODYlike
 		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike BRlike APPLETlike HRlike MAPlike same
 		flags: endO startO
-	19:BQ
+	21:BQ
 		justify
 		9 attributes:
 			0:2:CITE
@@ -1038,11 +1087,11 @@
 		tagclass: DIVlike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike same
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same
-		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
 		flags:
-	20:BR
+	22:BR
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1065,7 +1114,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike formula BRlike same
 		flags: endO
-	21:BUTTON
+	23:BUTTON
 		justify
 		16 attributes:
 			0:0:ACCESSKEY
@@ -1097,7 +1146,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike BRlike same
 		flags:
-	22:CAPTION
+	24:CAPTION
 		justify
 		9 attributes:
 			0:0:ACCESSKEY
@@ -1119,11 +1168,11 @@
 		tagclass: Plike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: DIVlike ULlike APPLETlike HRlike
-		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
+		contained: DIVlike ULlike APPLETlike HRlike DELlike
+		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike same
 		flags:
-	23:CENTER
+	25:CENTER
 		justify
 		8 attributes:
 			0:0:ALIGN
@@ -1143,11 +1192,11 @@
 		tagclass: DIVlike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same
-		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike LIlike same
 		flags:
-	24:CITE
+	26:CITE
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1170,7 +1219,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: EMlike
 		flags: nreie
-	25:CODE
+	27:CODE
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1193,7 +1242,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: EMlike
 		flags:
-	26:COL
+	28:COL
 		justify
 		13 attributes:
 			0:0:ALIGN
@@ -1223,7 +1272,7 @@
 		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike ULlike MAPlike same
 		flags: endO
-	27:COLGROUP
+	29:COLGROUP
 		justify
 		13 attributes:
 			0:0:ALIGN
@@ -1253,7 +1302,7 @@
 		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike MAPlike same
 		flags: endO
-	28:COMMENT
+	30:COMMENT
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1276,7 +1325,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer BODYlike HEADstuff
 		canclose: FONTlike EMlike
 		flags:
-	29:CREDIT
+	31:CREDIT
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1295,11 +1344,11 @@
 		tagclass: Plike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: DIVlike ULlike APPLETlike HRlike
-		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
+		contained: DIVlike ULlike APPLETlike HRlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike Plike DIVlike same
 		flags:
-	30:DD
+	32:DD
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1322,7 +1371,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike LIlike same
 		flags: endO
-	31:DEL
+	33:DEL
 		justify
 		8 attributes:
 			0:0:CITE
@@ -1340,13 +1389,37 @@
 			DEL
 		contents: SGML_MIXED
 		tagclass: EMlike
+		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike same
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
+		contained: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike same
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
+		canclose: FONTlike EMlike DELlike
+		flags:
+	34:DEL!
+		justify
+		8 attributes:
+			0:0:CITE
+			1:4:CLASS
+			2:0:DATETIME
+			3:0:DIR
+			4:1:ID
+			5:0:LANG
+			6:0:STYLE
+			7:0:TITLE
+		4 attr_types
+			core
+			events
+			i18n
+			DEL
+		contents: SGML_MIXED
+		tagclass: DELlike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike MAPlike same
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
 		contained: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike BODYlike same
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
-		canclose: FONTlike EMlike
+		canclose: FONTlike EMlike DELlike
 		flags:
-	32:DFN
+	35:DFN
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1369,7 +1442,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike EMlike
 		flags:
-	33:DIR
+	36:DIR
 		justify
 		14 attributes:
 			0:4:CLASS
@@ -1394,11 +1467,11 @@
 		tagclass: ULlike
 		contains: LIlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike BRlike APPLETlike HRlike MAPlike
-		contained: FORMlike DIVlike LIlike BRlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike
+		contained: FORMlike DIVlike LIlike BRlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike HRlike same
 		flags:
-	34:DIV
+	37:DIV
 		justify
 		8 attributes:
 			0:0:ALIGN
@@ -1418,11 +1491,11 @@
 		tagclass: DIVlike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: TRlike FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same
-		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
-		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
+		contained: TRlike FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
+		canclose: FONTlike EMlike MATHlike formula Plike DIVlike same
 		flags: mafse
-	35:DL
+	38:DL
 		justify
 		8 attributes:
 			0:4:CLASS
@@ -1441,11 +1514,11 @@
 		tagclass: ULlike
 		contains: FORMlike LIlike HRlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
-		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
+		canclose: FONTlike EMlike MATHlike formula SELECTlike Plike DIVlike LIlike
 		flags:
-	36:DLC
+	39:DLC
 		justify
 		8 attributes:
 			0:4:CLASS
@@ -1464,11 +1537,11 @@
 		tagclass: ULlike
 		contains: FORMlike LIlike HRlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike
 		flags:
-	37:DT
+	40:DT
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1491,7 +1564,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike LIlike same
 		flags: endO
-	38:EM
+	41:EM
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1514,7 +1587,7 @@
 		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike EMlike
 		flags: nreie
-	39:EMBED
+	42:EMBED
 		justify
 		21 attributes:
 			0:0:ALIGN
@@ -1551,7 +1624,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer
 		flags: endO
-	40:FIELDSET
+	43:FIELDSET
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1570,11 +1643,11 @@
 		tagclass: DIVlike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FONTlike EMlike MATHlike FORMlike Plike DIVlike LIlike APPLETlike HRlike same
-		icontained: FONTlike EMlike MATHlike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
+		contained: FONTlike EMlike MATHlike FORMlike Plike DIVlike LIlike APPLETlike HRlike same DELlike
+		icontained: FONTlike EMlike MATHlike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike MAPlike same
 		flags:
-	41:FIG
+	44:FIG
 		justify
 		17 attributes:
 			0:0:ALIGN
@@ -1603,11 +1676,34 @@
 		tagclass: DIVlike
 		contains: Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike SELECTlike Plike DIVlike MAPlike same
 		flags:
-	42:FN
+	45:FIGURE
+		justify
+		7 attributes:
+			0:4:CLASS
+			1:0:DIR
+			2:1:ID
+			3:0:LANG
+			4:0:ROLE
+			5:0:STYLE
+			6:0:TITLE
+		4 attr_types
+			core
+			events
+			i18n
+			GEN5
+		contents: SGML_MIXED
+		tagclass: DIVlike
+		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
+		contained: TRlike FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
+		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
+		flags: mafse
+	46:FN
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1626,11 +1722,11 @@
 		tagclass: DIVlike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same
-		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike SELECTlike Plike BRlike same
 		flags:
-	43:FONT
+	47:FONT
 		justify
 		11 attributes:
 			0:4:CLASS
@@ -1656,7 +1752,30 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags: mafse nreie
-	44:FORM
+	48:FOOTER
+		justify
+		7 attributes:
+			0:4:CLASS
+			1:0:DIR
+			2:1:ID
+			3:0:LANG
+			4:0:ROLE
+			5:0:STYLE
+			6:0:TITLE
+		4 attr_types
+			core
+			events
+			i18n
+			GEN5
+		contents: SGML_MIXED
+		tagclass: DIVlike
+		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
+		contained: TRlike FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
+		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
+		flags: mafse
+	49:FORM
 		justify
 		17 attributes:
 			0:0:ACCEPT
@@ -1684,11 +1803,11 @@
 		tagclass: FORMlike
 		contains: FONTlike EMlike MATHlike Alike TRlike SELECTlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike
-		contained: FONTlike EMlike MATHlike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Plike DIVlike LIlike ULlike APPLETlike outer BODYlike
+		contained: FONTlike EMlike MATHlike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Plike DIVlike LIlike ULlike APPLETlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike LIlike ULlike MAPlike same
 		flags:
-	45:FRAME
+	50:FRAME
 		justify
 		12 attributes:
 			0:4:CLASS
@@ -1714,7 +1833,7 @@
 		icontained: outer
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer same
 		flags: endO
-	46:FRAMESET
+	51:FRAMESET
 		justify
 		4 attributes:
 			0:0:COLS
@@ -1731,7 +1850,7 @@
 		icontained: BRlike APPLETlike outer same
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer same
 		flags:
-	47:H1
+	52:H1
 		nojustify
 		14 attributes:
 			0:0:ALIGN
@@ -1758,11 +1877,11 @@
 		tagclass: Plike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula SELECTlike BRlike APPLETlike MAPlike
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike formula Plike same
 		flags:
-	48:H2
+	53:H2
 		nojustify
 		14 attributes:
 			0:0:ALIGN
@@ -1789,11 +1908,11 @@
 		tagclass: Plike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula SELECTlike BRlike APPLETlike MAPlike
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike formula Plike same
 		flags:
-	49:H3
+	54:H3
 		nojustify
 		14 attributes:
 			0:0:ALIGN
@@ -1820,11 +1939,11 @@
 		tagclass: Plike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula SELECTlike BRlike APPLETlike MAPlike
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike formula Plike same
 		flags:
-	50:H4
+	55:H4
 		nojustify
 		14 attributes:
 			0:0:ALIGN
@@ -1851,11 +1970,11 @@
 		tagclass: Plike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula SELECTlike BRlike APPLETlike MAPlike
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike formula Plike same
 		flags:
-	51:H5
+	56:H5
 		nojustify
 		14 attributes:
 			0:0:ALIGN
@@ -1882,11 +2001,11 @@
 		tagclass: Plike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula SELECTlike BRlike APPLETlike MAPlike
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike formula Plike same
 		flags:
-	52:H6
+	57:H6
 		nojustify
 		14 attributes:
 			0:0:ALIGN
@@ -1913,11 +2032,11 @@
 		tagclass: Plike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula SELECTlike BRlike APPLETlike MAPlike
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike formula Plike same
 		flags:
-	53:HEAD
+	58:HEAD
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1940,7 +2059,30 @@
 		icontained: outer
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer same
 		flags: endO startO mafse
-	54:HR
+	59:HEADER
+		justify
+		7 attributes:
+			0:4:CLASS
+			1:0:DIR
+			2:1:ID
+			3:0:LANG
+			4:0:ROLE
+			5:0:STYLE
+			6:0:TITLE
+		4 attr_types
+			core
+			events
+			i18n
+			GEN5
+		contents: SGML_MIXED
+		tagclass: DIVlike
+		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
+		contained: TRlike FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
+		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
+		flags: mafse
+	60:HR
 		justify
 		13 attributes:
 			0:0:ALIGN
@@ -1969,7 +2111,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike formula TRlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike same
 		flags: endO
-	55:HTML
+	61:HTML
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -1992,7 +2134,7 @@
 		icontained:
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer
 		flags: endO startO
-	56:HY
+	62:HY
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2015,7 +2157,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike formula BRlike same
 		flags: endO
-	57:I
+	63:I
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2038,7 +2180,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags: mafse nreie
-	58:IFRAME
+	64:IFRAME
 		justify
 		14 attributes:
 			0:0:ALIGN
@@ -2067,7 +2209,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike BRlike APPLETlike outer HEADstuff same
 		flags:
-	59:IMG
+	65:IMG
 		justify
 		22 attributes:
 			0:0:ALIGN
@@ -2106,7 +2248,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
 		canclose: same
 		flags: endO
-	60:INPUT
+	66:INPUT
 		justify
 		35 attributes:
 			0:0:ACCEPT
@@ -2158,7 +2300,7 @@
 		icontained: FONTlike EMlike MATHlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike SELECTlike BRlike MAPlike same
 		flags: endO
-	61:INS
+	67:INS
 		justify
 		8 attributes:
 			0:0:CITE
@@ -2176,13 +2318,37 @@
 			DEL
 		contents: SGML_MIXED
 		tagclass: EMlike
+		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike same
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
+		contained: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike same
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
+		canclose: FONTlike EMlike DELlike
+		flags:
+	68:INS!
+		justify
+		8 attributes:
+			0:0:CITE
+			1:4:CLASS
+			2:0:DATETIME
+			3:0:DIR
+			4:1:ID
+			5:0:LANG
+			6:0:STYLE
+			7:0:TITLE
+		4 attr_types
+			core
+			events
+			i18n
+			DEL
+		contents: SGML_MIXED
+		tagclass: DELlike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike MAPlike same
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
 		contained: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike BODYlike same
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
-		canclose: FONTlike EMlike
+		canclose: FONTlike EMlike DELlike
 		flags:
-	62:ISINDEX
+	69:ISINDEX
 		justify
 		9 attributes:
 			0:2:ACTION
@@ -2206,7 +2372,7 @@
 		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer BODYlike HEADstuff
 		canclose: FONTlike EMlike MATHlike same
 		flags: endO
-	63:KBD
+	70:KBD
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2229,7 +2395,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff
 		canclose: FONTlike EMlike
 		flags:
-	64:KEYGEN
+	71:KEYGEN
 		justify
 		8 attributes:
 			0:0:CHALLENGE
@@ -2252,7 +2418,7 @@
 		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
 		canclose: formula TRlike SELECTlike same
 		flags: endO
-	65:LABEL
+	72:LABEL
 		justify
 		11 attributes:
 			0:0:ACCESSKEY
@@ -2279,7 +2445,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike
 		flags:
-	66:LEGEND
+	73:LEGEND
 		justify
 		9 attributes:
 			0:0:ACCESSKEY
@@ -2305,7 +2471,7 @@
 		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike
 		flags:
-	67:LH
+	74:LH
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2328,7 +2494,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer same
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike LIlike same
 		flags: endO
-	68:LI
+	75:LI
 		justify
 		13 attributes:
 			0:4:CLASS
@@ -2357,7 +2523,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer same
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike LIlike same
 		flags: endO
-	69:LINK
+	76:LINK
 		justify
 		14 attributes:
 			0:0:CHARSET
@@ -2387,7 +2553,7 @@
 		icontained: outer HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike
 		flags: endO
-	70:LISTING
+	77:LISTING
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2406,11 +2572,34 @@
 		tagclass: ULlike
 		contains:
 		icontains:
-		contained: DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike
+		contained: DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike LIlike ULlike same
 		flags:
-	71:MAP
+	78:MAIN
+		justify
+		7 attributes:
+			0:4:CLASS
+			1:0:DIR
+			2:1:ID
+			3:0:LANG
+			4:0:ROLE
+			5:0:STYLE
+			6:0:TITLE
+		4 attr_types
+			core
+			events
+			i18n
+			GEN5
+		contents: SGML_MIXED
+		tagclass: DIVlike
+		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
+		contained: TRlike FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
+		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
+		flags: mafse
+	79:MAP
 		justify
 		8 attributes:
 			0:4:CLASS
@@ -2433,7 +2622,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike formula Plike LIlike
 		flags:
-	72:MARQUEE
+	80:MARQUEE
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2456,7 +2645,7 @@
 		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: MATHlike Alike formula BRlike APPLETlike same
 		flags:
-	73:MATH
+	81:MATH
 		justify
 		8 attributes:
 			0:0:BOX
@@ -2479,7 +2668,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike EMlike MATHlike Alike formula
 		flags:
-	74:MENU
+	82:MENU
 		justify
 		14 attributes:
 			0:4:CLASS
@@ -2504,11 +2693,11 @@
 		tagclass: ULlike
 		contains: LIlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike BRlike APPLETlike HRlike MAPlike
-		contained: FORMlike DIVlike LIlike BRlike APPLETlike HRlike outer
-		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike
+		contained: FORMlike DIVlike LIlike BRlike APPLETlike HRlike outer DELlike
+		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike MAPlike same
 		flags:
-	75:META
+	83:META
 		justify
 		5 attributes:
 			0:0:CHARSET
@@ -2526,7 +2715,30 @@
 		icontained: outer HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike
 		flags: endO
-	76:NEXTID
+	84:NAV
+		justify
+		7 attributes:
+			0:4:CLASS
+			1:0:DIR
+			2:1:ID
+			3:0:LANG
+			4:0:ROLE
+			5:0:STYLE
+			6:0:TITLE
+		4 attr_types
+			core
+			events
+			i18n
+			GEN5
+		contents: SGML_MIXED
+		tagclass: DIVlike
+		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
+		contained: TRlike FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
+		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
+		flags: mafse
+	85:NEXTID
 		justify
 		1 attributes:
 			0:0:N
@@ -2540,7 +2752,7 @@
 		icontained: FONTlike EMlike MATHlike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer
 		canclose: FONTlike
 		flags: endO
-	77:NOFRAMES
+	86:NOFRAMES
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2557,13 +2769,13 @@
 			GEN
 		contents: SGML_MIXED
 		tagclass: BODYlike
-		contains: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike
-		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike
+		contains: FONTlike EMlike MATHlike Alike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike BODYlike DELlike
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike DELlike
 		contained: BRlike APPLETlike HRlike outer
 		icontained: BRlike APPLETlike HRlike outer
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike ULlike HRlike MAPlike
 		flags:
-	78:NOTE
+	87:NOTE
 		justify
 		10 attributes:
 			0:4:CLASS
@@ -2584,11 +2796,11 @@
 		tagclass: DIVlike
 		contains: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike ULlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: formula TRlike FORMlike DIVlike LIlike BRlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
+		contained: formula TRlike FORMlike DIVlike LIlike BRlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
 		flags:
-	79:OBJECT
+	88:OBJECT
 		justify
 		26 attributes:
 			0:0:ALIGN
@@ -2631,7 +2843,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike LIlike ULlike BRlike APPLETlike same
 		flags: frecyc
-	80:OL
+	89:OL
 		justify
 		12 attributes:
 			0:4:CLASS
@@ -2654,11 +2866,11 @@
 		tagclass: ULlike
 		contains: LIlike HRlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike BRlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike BRlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike MAPlike same
 		flags:
-	81:OPTION
+	90:OPTION
 		justify
 		13 attributes:
 			0:4:CLASS
@@ -2687,7 +2899,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
 		flags: endO
-	82:OVERLAY
+	91:OVERLAY
 		justify
 		12 attributes:
 			0:4:CLASS
@@ -2713,7 +2925,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike DIVlike LIlike ULlike BRlike APPLETlike same
 		flags: endO
-	83:P
+	92:P
 		justify
 		9 attributes:
 			0:0:ALIGN
@@ -2734,11 +2946,11 @@
 		tagclass: Plike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike formula Plike same
 		flags: endO
-	84:PARAM
+	93:PARAM
 		justify
 		18 attributes:
 			0:0:ACCEPT
@@ -2771,7 +2983,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike
 		canclose: TRlike SELECTlike Plike LIlike BRlike same
 		flags: endO
-	85:PLAINTEXT
+	94:PLAINTEXT
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2794,7 +3006,7 @@
 		icontained: outer same
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer BODYlike
 		flags: endO
-	86:PRE
+	95:PRE
 		nojustify
 		7 attributes:
 			0:4:CLASS
@@ -2813,11 +3025,11 @@
 		tagclass: DIVlike
 		contains: FONTlike EMlike MATHlike Alike SELECTlike BRlike APPLETlike HRlike MAPlike
 		icontains: EMlike MATHlike Alike formula SELECTlike BRlike APPLETlike HRlike MAPlike
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: EMlike MATHlike Alike formula Plike DIVlike LIlike same
 		flags:
-	87:Q
+	96:Q
 		justify
 		8 attributes:
 			0:2:CITE
@@ -2840,7 +3052,7 @@
 		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike EMlike
 		flags:
-	88:S
+	97:S
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2863,7 +3075,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags:
-	89:SAMP
+	98:SAMP
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2886,7 +3098,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: EMlike
 		flags: nreie
-	90:SCRIPT
+	99:SCRIPT
 		justify
 		16 attributes:
 			0:0:CHARSET
@@ -2917,7 +3129,30 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike LIlike ULlike BRlike APPLETlike HRlike same
 		flags:
-	91:SELECT
+	100:SECTION
+		justify
+		7 attributes:
+			0:4:CLASS
+			1:0:DIR
+			2:1:ID
+			3:0:LANG
+			4:0:ROLE
+			5:0:STYLE
+			6:0:TITLE
+		4 attr_types
+			core
+			events
+			i18n
+			GEN5
+		contents: SGML_MIXED
+		tagclass: DIVlike
+		contains: FONTlike EMlike MATHlike Alike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
+		contained: TRlike FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike same DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
+		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike same
+		flags: mafse
+	101:SELECT
 		justify
 		22 attributes:
 			0:0:ALIGN
@@ -2955,7 +3190,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike LIlike ULlike same
 		flags: strict
-	92:SHY
+	102:SHY
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -2978,7 +3213,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike formula BRlike same
 		flags: endO
-	93:SMALL
+	103:SMALL
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3001,7 +3236,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags: mafse nreie
-	94:SPAN
+	104:SPAN
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3024,7 +3259,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike EMlike same
 		flags:
-	95:SPOT
+	105:SPOT
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3047,7 +3282,7 @@
 		icontained: FONTlike EMlike MATHlike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer BODYlike
 		canclose: Alike
 		flags: endO
-	96:STRIKE
+	106:STRIKE
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3070,7 +3305,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags:
-	97:STRONG
+	107:STRONG
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3093,7 +3328,7 @@
 		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike EMlike
 		flags: nreie
-	98:STYLE
+	108:STYLE
 		justify
 		9 attributes:
 			0:4:CLASS
@@ -3117,7 +3352,7 @@
 		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike formula same
 		flags:
-	99:SUB
+	109:SUB
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3140,7 +3375,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike EMlike MATHlike
 		flags:
-	100:SUP
+	110:SUP
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3163,7 +3398,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike EMlike MATHlike
 		flags:
-	101:TAB
+	111:TAB
 		justify
 		11 attributes:
 			0:0:ALIGN
@@ -3190,7 +3425,7 @@
 		icontained: FONTlike EMlike MATHlike Alike TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer HEADstuff
 		canclose: FONTlike
 		flags: endO
-	102:TABLE
+	112:TABLE
 		justify
 		22 attributes:
 			0:0:ALIGN
@@ -3225,11 +3460,11 @@
 		tagclass: ULlike
 		contains: TRlike SELECTlike FORMlike Plike BRlike APPLETlike HRlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike TRlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike Plike LIlike HRlike MAPlike same
 		flags:
-	103:TBODY
+	113:TBODY
 		justify
 		13 attributes:
 			0:0:ALIGN
@@ -3259,7 +3494,7 @@
 		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike HRlike MAPlike same
 		flags: endO startO
-	104:TD
+	114:TD
 		justify
 		23 attributes:
 			0:0:ABBR
@@ -3298,7 +3533,7 @@
 		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike HRlike MAPlike same
 		flags: endO
-	105:TEXTAREA
+	115:TEXTAREA
 		justify
 		22 attributes:
 			0:0:ACCEPT-CHARSET
@@ -3337,7 +3572,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike outer BODYlike
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike LIlike ULlike same
 		flags: nolyspcl
-	106:TEXTFLOW
+	116:TEXTFLOW
 		justify
 		14 attributes:
 			0:4:CLASS
@@ -3360,13 +3595,13 @@
 			BODYTEXT
 		contents: SGML_MIXED
 		tagclass: BODYlike
-		contains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same
-		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer same
+		contains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike ULlike BRlike APPLETlike HRlike MAPlike same DELlike
+		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike outer same DELlike
 		contained: formula TRlike FORMlike Plike DIVlike LIlike BRlike APPLETlike HRlike outer same
 		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike BRlike APPLETlike MAPlike outer same
 		flags: endO startO
-	107:TFOOT
+	117:TFOOT
 		justify
 		13 attributes:
 			0:0:ALIGN
@@ -3396,7 +3631,7 @@
 		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike ULlike HRlike MAPlike same
 		flags: endO
-	108:TH
+	118:TH
 		justify
 		23 attributes:
 			0:0:ABBR
@@ -3435,7 +3670,7 @@
 		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike ULlike HRlike MAPlike same
 		flags: endO
-	109:THEAD
+	119:THEAD
 		justify
 		13 attributes:
 			0:0:ALIGN
@@ -3465,7 +3700,7 @@
 		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike ULlike HRlike MAPlike same
 		flags: endO
-	110:TITLE
+	120:TITLE
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3488,7 +3723,7 @@
 		icontained: outer HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike formula Plike DIVlike
 		flags: mafse strict
-	111:TR
+	121:TR
 		justify
 		13 attributes:
 			0:0:ALIGN
@@ -3518,7 +3753,7 @@
 		icontained: FONTlike EMlike MATHlike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike HRlike MAPlike same
 		flags: endO
-	112:TT
+	122:TT
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3541,7 +3776,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags: nreie
-	113:U
+	123:U
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3564,7 +3799,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags: mafse nreie
-	114:UL
+	124:UL
 		justify
 		14 attributes:
 			0:4:CLASS
@@ -3589,11 +3824,11 @@
 		tagclass: ULlike
 		contains: FORMlike LIlike HRlike MAPlike
 		icontains: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike MAPlike same
-		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same
+		contained: FORMlike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike same DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike same
 		flags:
-	115:VAR
+	125:VAR
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3616,7 +3851,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff same
 		canclose: FONTlike
 		flags:
-	116:WBR
+	126:WBR
 		justify
 		7 attributes:
 			0:4:CLASS
@@ -3639,7 +3874,7 @@
 		icontained: FONTlike EMlike MATHlike Alike formula TRlike FORMlike Plike DIVlike LIlike ULlike BRlike APPLETlike HRlike outer BODYlike HEADstuff
 		canclose: FONTlike EMlike MATHlike Alike formula BRlike same
 		flags: endO
-	117:XMP
+	127:XMP
 		nojustify
 		7 attributes:
 			0:4:CLASS
@@ -3658,7 +3893,7 @@
 		tagclass: ULlike
 		contains:
 		icontains:
-		contained: TRlike SELECTlike FORMlike Plike DIVlike LIlike APPLETlike HRlike outer BODYlike
-		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike
+		contained: TRlike SELECTlike FORMlike Plike DIVlike LIlike APPLETlike HRlike outer BODYlike DELlike
+		icontained: FONTlike EMlike MATHlike Alike formula TRlike SELECTlike FORMlike Plike DIVlike LIlike ULlike APPLETlike HRlike outer BODYlike DELlike
 		canclose: FONTlike EMlike MATHlike Alike formula SELECTlike Plike DIVlike LIlike MAPlike
 		flags: endO

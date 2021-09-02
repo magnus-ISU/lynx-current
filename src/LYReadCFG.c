@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYReadCFG.c,v 1.184 2014/02/12 23:59:11 tom Exp $
+ * $LynxId: LYReadCFG.c,v 1.199 2021/06/09 21:49:32 tom Exp $
  */
 #ifndef NO_RULES
 #include <HTRules.h>
@@ -243,8 +243,6 @@ static void add_item_to_list(char *buffer,
 	if (cur_item == NULL)
 	    outofmem(__FILE__, "read_cfg");
 
-	assert(cur_item != NULL);
-
 	*list_ptr = cur_item;
 #ifdef LY_FIND_LEAKS
 	atexit(free_all_item_lists);
@@ -262,8 +260,6 @@ static void add_item_to_list(char *buffer,
 	    outofmem(__FILE__, "read_cfg");
 	else
 	    prev_item->next = cur_item;
-
-	assert(cur_item != NULL);
     }
     /* fill-in nonzero default values */
     cur_item->pagelen = 66;
@@ -474,12 +470,8 @@ static void parse_color(char *buffer)
     if (NULL == (fg = find_colon(buffer)))
 	exit_with_color_syntax(buffer);
 
-    assert(fg != NULL);
-
     if (NULL == (bg = find_colon(++fg)))
 	exit_with_color_syntax(buffer);
-
-    assert(bg != NULL);
 
     StrAllocCopy(temp_fg, fg);
     temp_fg[bg++ - fg] = '\0';
@@ -625,8 +617,6 @@ static int assumed_color_fun(char *buffer)
 	if (NULL == (bg = find_colon(fg)))
 	    exit_with_color_syntax(buffer);
 
-	assert(bg != NULL);
-
 	StrAllocCopy(temp_fg, fg);
 	temp_fg[bg++ - fg] = '\0';
 
@@ -655,7 +645,12 @@ static int color_fun(char *value)
 #ifdef USE_COLOR_STYLE
 static int lynx_lss_file_fun(char *value)
 {
-    add_to_lss_list(value, NULL);
+    CTRACE((tfp, "lynx_lss_file_fun '%s'\n", NonNull(value)));
+    if (isEmpty(value)) {
+	clear_lss_list();
+    } else {
+	add_to_lss_list(value, NULL);
+    }
     return 0;
 }
 #endif
@@ -820,7 +815,10 @@ static int keymap_fun(char *key)
 		    if (!success)
 			fprintf(stderr,
 				gettext("setting of line-editor binding for key %s (0x%x) to 0x%x for %s failed\n"),
-				key, lkc, lec, efunc);
+				key,
+				(unsigned) lkc,
+				(unsigned) lec,
+				efunc);
 		    else
 			return 0;
 		}
@@ -832,11 +830,16 @@ static int keymap_fun(char *key)
 		    if (lec != -1) {
 			fprintf(stderr,
 				gettext("setting of line-editor binding for key %s (0x%x) to 0x%x for %s failed\n"),
-				key, lkc, lec, efunc);
+				key,
+				(unsigned) lkc,
+				(unsigned) lec,
+				efunc);
 		    } else {
 			fprintf(stderr,
 				gettext("setting of line-editor binding for key %s (0x%x) for %s failed\n"),
-				key, lkc, efunc);
+				key,
+				(unsigned) lkc,
+				efunc);
 		    }
 		}
 	    }
@@ -1016,7 +1019,7 @@ static int suffix_fun(char *value)
     /*
      * mime-type is not converted to lowercase on input, to make it possible to
      * reproduce the equivalent of some of the HTInit.c defaults that use mixed
-     * case, although that is not recomended.  - kw
+     * case, although that is not recommended.  - kw
      */
     if (!*mime_type) {		/* that's ok now, with an encoding!  */
 	CTRACE((tfp, "SUFFIX:%s without MIME type for %s\n", value,
@@ -1270,8 +1273,6 @@ static int parse_html_src_spec(HTlexeme lexeme_code, char *value,
     if (!ts2)
 	BS();
 
-    assert(ts2 != NULL);
-
     *ts2 = '\0';
 
     CTRACE2(TRACE_CFG, (tfp,
@@ -1490,6 +1491,7 @@ static Config_Type Config_Table [] =
      PARSE_STR(RC_COOKIE_SAVE_FILE,     LYCookieSaveFile),
 #endif /* USE_PERSISTENT_COOKIES */
      PARSE_STR(RC_COOKIE_STRICT_INVALID_DOMAIN, LYCookieSStrictCheckDomains),
+     PARSE_ENU(RC_COOKIE_VERSION,       cookie_version, tbl_cookie_version),
      PARSE_Env(RC_CSO_PROXY,            0),
 #ifdef VMS
      PARSE_PRG(RC_CSWING_PATH,          ppCSWING),
@@ -1548,6 +1550,7 @@ static Config_Type Config_Table [] =
      PARSE_Env(RC_GOPHER_PROXY,         0),
      PARSE_SET(RC_GOTOBUFFER,           goto_buffer),
      PARSE_PRG(RC_GZIP_PATH,            ppGZIP),
+     PARSE_SET(RC_GUESS_SCHEME,         LYGuessScheme),
      PARSE_STR(RC_HELPFILE,             helpfile),
      PARSE_FUN(RC_HIDDENLINKS,          hiddenlinks_fun),
 #ifdef MARK_HIDDEN_LINKS
@@ -1559,6 +1562,7 @@ static Config_Type Config_Table [] =
      PARSE_FUN(RC_HTMLSRC_ATTRNAME_XFORM, read_htmlsrc_attrname_xform),
      PARSE_FUN(RC_HTMLSRC_TAGNAME_XFORM, read_htmlsrc_tagname_xform),
 #endif
+     PARSE_FUN(RC_HTTP_PROTOCOL,        get_http_protocol),
      PARSE_Env(RC_HTTP_PROXY,           0),
      PARSE_Env(RC_HTTPS_PROXY,          0),
      PARSE_REQ(RC_INCLUDE,              0),
@@ -1578,6 +1582,7 @@ static Config_Type Config_Table [] =
      PARSE_FUN(RC_KEYMAP,               keymap_fun),
      PARSE_SET(RC_LEFTARROW_IN_TEXTFLD_PROMPT, textfield_prompt_at_left_edge),
      PARSE_SET(RC_LISTONLY,             dump_links_only),
+     PARSE_SET(RC_LIST_DECODED,         dump_links_decoded),
 #ifndef VMS
      PARSE_STR(RC_LIST_FORMAT,          list_format),
 #endif
@@ -1651,6 +1656,7 @@ static Config_Type Config_Table [] =
      PARSE_SET(RC_NO_REFERER_HEADER,    LYNoRefererHeader),
      PARSE_SET(RC_NO_TABLE_CENTER,      no_table_center),
      PARSE_SET(RC_NO_TITLE,             no_title),
+     PARSE_SET(RC_UPDATE_TERM_TITLE,    update_term_title),
      PARSE_FUN(RC_NONRESTARTING_SIGWINCH, nonrest_sigwinch_fun),
      PARSE_FUN(RC_OUTGOING_MAIL_CHARSET, outgoing_mail_charset_fun),
 #ifdef DISP_PARTIAL
@@ -1664,6 +1670,7 @@ static Config_Type Config_Table [] =
      PARSE_STR(RC_PERSONAL_MAILCAP,     personal_type_map),
      PARSE_LST(RC_POSITIONABLE_EDITOR,  positionable_editor),
      PARSE_STR(RC_PREFERRED_CHARSET,    pref_charset),
+     PARSE_ENU(RC_PREFERRED_CONTENT_TYPE, LYContentType, tbl_preferred_content),
      PARSE_ENU(RC_PREFERRED_ENCODING,   LYAcceptEncoding, tbl_preferred_encoding),
      PARSE_STR(RC_PREFERRED_LANGUAGE,   language),
      PARSE_ENU(RC_PREFERRED_MEDIA_TYPES, LYAcceptMedia, tbl_preferred_media),
@@ -1677,6 +1684,7 @@ static Config_Type Config_Table [] =
      PARSE_ADD(RC_PRINTER,              printers),
      PARSE_SET(RC_QUIT_DEFAULT_YES,     LYQuitDefaultYes),
      PARSE_INT(RC_READ_TIMEOUT,         reading_timeout),
+     PARSE_INT(RC_REDIRECTION_LIMIT,    redirection_limit),
      PARSE_FUN(RC_REFERER_WITH_QUERY,   referer_with_query_fun),
 #ifdef USE_CMD_LOGGING
      PARSE_TIM(RC_REPLAYSECS,           ReplaySecs),
@@ -1719,6 +1727,8 @@ static Config_Type Config_Table [] =
      PARSE_ENU(RC_SOURCE_CACHE_FOR_ABORTED, LYCacheSourceForAborted, tbl_abort_source_cache),
 #endif
      PARSE_STR(RC_SSL_CERT_FILE,        SSL_cert_file),
+     PARSE_STR(RC_SSL_CLIENT_CERT_FILE, SSL_client_cert_file),
+     PARSE_STR(RC_SSL_CLIENT_KEY_FILE,  SSL_client_key_file),
      PARSE_FUN(RC_STARTFILE,            startfile_fun),
      PARSE_FUN(RC_STATUS_BUFFER_SIZE,   status_buffer_size_fun),
      PARSE_SET(RC_STRIP_DOTDOT_URLS,    LYStripDotDotURLs),
@@ -1744,6 +1754,7 @@ static Config_Type Config_Table [] =
 #endif
      PARSE_PRG(RC_TOUCH_PATH,           ppTOUCH),
      PARSE_SET(RC_TRACK_INTERNAL_LINKS, track_internal_links),
+     PARSE_SET(RC_TRIM_BLANK_LINES,     LYtrimBlankLines),
      PARSE_SET(RC_TRIM_INPUT_FIELDS,    LYtrimInputFields),
 #ifdef EXEC_LINKS
      PARSE_DEF(RC_TRUSTED_EXEC,         EXEC_PATH),
@@ -1937,6 +1948,8 @@ BOOL LYSetConfigValue(const char *name,
     char *temp_name = 0;
     char *temp_value = 0;
 
+    if (param == NULL)
+	param = "";
     StrAllocCopy(value, param);
     switch (tbl->type) {
     case CONF_BOOL:
@@ -2340,6 +2353,14 @@ static void do_read_cfg(const char *cfg_filename,
      * And for query/strict/loose invalid cookie checking. - BJP
      */
     LYConfigCookies();
+
+    /*
+     * Do not allow infinite redirection loops.
+     */
+    if (redirection_limit < 5)
+	redirection_limit = 5;
+    if (redirection_limit > 25)
+	redirection_limit = 25;
 }
 
 /* this is a public interface to do_read_cfg */

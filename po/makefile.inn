@@ -1,11 +1,13 @@
-# $LynxId: makefile.inn,v 1.19 2010/09/19 18:34:55 tom Exp $
+# $LynxId: makefile.inn,v 1.32 2021/02/28 15:56:25 tom Exp $
 #
 # Makefile for program source directory in GNU NLS utilities package.
 # Copyright (C) 1995, 1996, 1997 by Ulrich Drepper <drepper@gnu.ai.mit.edu>
 #
 # This file may be copied and used freely without restrictions.  It can
-# be used in projects which are not available under the GNU Public License
-# but which still want to provide support for the GNU gettext functionality.
+# be used in projects which are not available under the GNU General
+# Public License but which still want to provide support for the GNU
+# gettext functionality.
+#
 # Please note that the actual code is *not* freely available.
 
 SHELL = /bin/sh
@@ -72,6 +74,7 @@ INSTOBJ		= $(NLS_TEXTDOMAIN)$(INSTOBJEXT)
 .SUFFIXES: .c .o .po .pox .gmo .mo .msg .cat
 
 .c.o:
+	@RULE_CC@
 	$(COMPILE) $<
 
 .po.pox:
@@ -79,14 +82,33 @@ INSTOBJ		= $(NLS_TEXTDOMAIN)$(INSTOBJEXT)
 	$(MSGMERGE) -w 132 $< $(srcdir)/$(PACKAGE).pot -o $*.pox
 
 .po.mo:
-	$(MSGFMT) -o $@ $<
+	@echo "translating $< to $@"
+	@ECHO_CC@$(MSGFMT) -o $@ $<
 
 .po.gmo:
-	file=$(srcdir)/`echo $* | sed 's,.*/,,'`.gmo \
-	  && rm -f $$file && $(GMSGFMT) -o $$file $<
+	@echo "translating $< to $@"
+	@$(SHELL) -c 'LC_ALL=C \
+	sed	-e s,http://lynx.browser.org/,@HOMEPAGE_URL@,g \
+		-e s,http://lynx.isc.org/,@HOMEPAGE_URL@,g $< >pass1-$(*F).tmp;\
+	if cmp -s $< pass1-$(*F).tmp; \
+	then \
+		echo ...no change made to homepage URL; \
+	else \
+		echo ...updated homepage URL;\
+	fi; \
+	if $(MSGMERGE) -w 132 pass1-$(*F).tmp $(srcdir)/$(PACKAGE).pot -o pass2-$(*F).tmp; \
+	then \
+		echo "...merged against $(srcdir)/$(PACKAGE).pot";\
+	else \
+		echo "...workaround without merging against $(srcdir)/$(PACKAGE).pot";\
+		cat  $< >pass2-$(*F).tmp; \
+	fi '
+	@ECHO_CC@rm -f $@ && $(GMSGFMT) -o $@ pass2-$(*F).tmp
+	@-rm -f pass*-$(*F).tmp
 
 .po.cat:
-	sed -f ../intl/po2msg.sed < $< > $*.msg \
+	@echo "translating $< to $@"
+	@ECHO_CC@sed -f ../intl/po2msg.sed < $< > $*.msg \
 	  && rm -f $@ && $(GENCAT) $@ $*.msg
 
 
@@ -95,12 +117,25 @@ all: all-@USE_NLS@
 all-yes: $(SOURCES) $(CATALOGS)
 all-no:
 
-en.po :	
+en.po :
 	msginit --no-translator -l en -i $(PACKAGE).pot
+# cygwin's msginit 1.19.3 creates "en_US.po" rather than "en.po"...
+	@$(SHELL) -c 'for n in en*.po; \
+		do \
+		if test -f $$n; \
+		then \
+			test $$n != $@ && mv -vf $$n $@; \
+			break; \
+		fi \
+		done'
 
 $(srcdir)/$(PACKAGE).pot: $(POTFILES)
-	$(XGETTEXT) --default-domain=$(NLS_TEXTDOMAIN) --directory=$(top_srcdir) \
-	  --add-comments --keyword=_ --keyword=N_ \
+	$(XGETTEXT) \
+	  --default-domain=$(NLS_TEXTDOMAIN) \
+	  --directory=$(top_srcdir) \
+	  --add-comments \
+	  --keyword=_ \
+	  --keyword=N_ \
 	  --files-from=$(srcdir)/POTFILES.in \
 	&& test ! -f $(PACKAGE).po \
 	   || ( rm -f $(srcdir)/$(PACKAGE).pot \
@@ -118,7 +153,7 @@ $(srcdir)/stamp-cat-id: $(PACKAGE).pot
 	  rm -f $(srcdir)/cat-id-tbl.c; \
 	  mv cat-id-tbl.tmp $(srcdir)/cat-id-tbl.c; \
 	fi
-	cd $(srcdir) && rm -f stamp-cat-id && echo timestamp > stamp-cat-id
+	( cd $(srcdir) && rm -f stamp-cat-id && echo timestamp > stamp-cat-id )
 
 
 install: install-exec install-data
@@ -190,12 +225,13 @@ dvi info tags TAGS ID:
 
 mostlyclean:
 	rm -f core core.* *.pox $(PACKAGE).po en.po *.old.po cat-id-tbl.tmp
+	rm -f *.gmo *.mo *.tmp
 	rm -fr *.o
 
 clean: mostlyclean
 
 distclean: clean
-	rm -f cat-id-tbl.c stamp-cat-id *.gmo *.mo
+	rm -f cat-id-tbl.c stamp-cat-id
 	rm -f makefile makefile.in POTFILES *.mo *.msg *.cat *.cat.m
 
 maintainer-clean: distclean
@@ -213,19 +249,19 @@ dist distdir: update-po $(DISTFILES)
 
 # GNU msgfmt -C option can also check for X/Open compat.
 check-po:
-	cd $(srcdir); \
+	( cd $(srcdir); \
 	catalogs='$(CATALOGS)'; \
 	for cat in $$catalogs; do \
 	  cat=`basename $$cat`; \
 	  lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
 	  echo "$$lang:"; \
 	  $(MSGFMT) -f -c -v $$lang.po; \
-	done
+	done )
 
 update-po: makefile
 	$(MAKE) $(PACKAGE).pot
 	PATH=`pwd`/../src:$$PATH; \
-	cd $(srcdir); \
+	( cd $(srcdir); \
 	catalogs='$(CATALOGS)'; \
 	for cat in $$catalogs; do \
 	  cat=`basename $$cat`; \
@@ -239,7 +275,7 @@ update-po: makefile
 	    rm -f $$lang.po; \
 	    mv $$lang.old.po $$lang.po; \
 	  fi; \
-	done
+	done )
 
 POTFILES: POTFILES.in
 	( if test 'x$(srcdir)' != 'x.'; then \
@@ -255,9 +291,9 @@ POTFILES: POTFILES.in
 	    && mv $@-t $@ )
 
 makefile: makefile.inn ../config.status POTFILES
-	cd .. \
+	( cd .. \
 	  && CONFIG_FILES=$(subdir)/$@.in:$(subdir)/$@.inn CONFIG_HEADERS= \
-	       $(SHELL) ./config.status
+	       $(SHELL) ./config.status )
 
 # Tell versions [3.59,3.63) of GNU make not to export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

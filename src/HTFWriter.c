@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTFWriter.c,v 1.106 2013/11/28 11:17:04 tom Exp $
+ * $LynxId: HTFWriter.c,v 1.119 2019/08/25 22:57:03 tom Exp $
  *
  *		FILE WRITER				HTFWrite.h
  *		===========
@@ -143,6 +143,81 @@ static void HTFWriter_write(HTStream *me, const char *s, int l)
     }
 }
 
+static void decompress_gzip(HTStream *me)
+{
+    char *in_name = me->anchor->FileCache;
+    char copied[LY_MAXPATH];
+    FILE *fp = LYOpenTemp(copied, ".tmp.gz", BIN_W);
+
+    if (fp != 0) {
+#ifdef USE_ZLIB
+	char buffer[BUFSIZ];
+	gzFile gzfp;
+	int status;
+
+	CTRACE((tfp, "decompressing '%s'\n", in_name));
+	if ((gzfp = gzopen(in_name, BIN_R)) != 0) {
+	    BOOL success = TRUE;
+	    size_t actual = 0;
+
+	    CTRACE((tfp, "...opened '%s'\n", copied));
+	    while ((status = gzread(gzfp, buffer, sizeof(buffer))) > 0) {
+		size_t want = (size_t) status;
+		size_t have = fwrite(buffer, sizeof(char), want, fp);
+
+		actual += have;
+		if (want != have) {
+		    success = FALSE;
+		    break;
+		}
+	    }
+	    gzclose(gzfp);
+	    LYCloseTempFP(fp);
+	    CTRACE((tfp, "...decompress %" PRI_off_t " to %lu\n",
+		    CAST_off_t (me->anchor->actual_length),
+		    (unsigned long)actual));
+	    if (success) {
+		if (LYRenameFile(copied, in_name) == 0)
+		    me->anchor->actual_length = (off_t) actual;
+		(void) LYRemoveTemp(copied);
+	    }
+	}
+#else
+#define FMT "%s %s"
+	const char *program;
+
+	if (LYCopyFile(in_name, copied) == 0) {
+	    char expanded[LY_MAXPATH];
+	    char *command = NULL;
+
+	    if ((program = HTGetProgramPath(ppUNCOMPRESS)) != NULL) {
+		HTAddParam(&command, FMT, 1, program);
+		HTAddParam(&command, FMT, 2, copied);
+		HTEndParam(&command, FMT, 2);
+	    }
+	    if (LYSystem(command) == 0) {
+		struct stat stat_buf;
+
+		strcpy(expanded, copied);
+		*strrchr(expanded, '.') = '\0';
+		if (LYRenameFile(expanded, in_name) != 0) {
+		    CTRACE((tfp, "rename failed %s to %s\n", expanded, in_name));
+		} else if (stat(in_name, &stat_buf) != 0) {
+		    CTRACE((tfp, "stat failed for %s\n", in_name));
+		} else {
+		    me->anchor->actual_length = stat_buf.st_size;
+		}
+	    } else {
+		CTRACE((tfp, "command failed: %s\n", command));
+	    }
+	    free(command);
+	    (void) LYRemoveTemp(copied);
+	}
+#undef FMT
+#endif
+    }
+}
+
 /*	Free an HTML object
  *	-------------------
  *
@@ -168,6 +243,19 @@ static void HTFWriter_free(HTStream *me)
 	fflush(me->fp);
     if (me->end_command) {	/* Temp file */
 	LYCloseTempFP(me->fp);
+	/*
+	 * Handle a special case where the server used "Content-Type:  gzip". 
+	 * Normally that feeds into the presentation stages, but if the link
+	 * happens to point to something that will not be presented, but
+	 * instead offered as a download, it comes here.  In that case, ungzip
+	 * the content before prompting the user for the place to store it.
+	 */
+	if (me->anchor->FileCache != NULL
+	    && me->anchor->no_content_encoding == FALSE
+	    && me->input_format == HTAtom_for("application/x-gzip")
+	    && !strcmp(me->anchor->content_encoding, "gzip")) {
+	    decompress_gzip(me);
+	}
 #ifdef VMS
 	if (0 == strcmp(me->end_command, "SaveVMSBinaryFile")) {
 	    /*
@@ -276,7 +364,7 @@ static void HTFWriter_free(HTStream *me)
 			    new_path[off] = '.';
 			    if (strlen(new_path + off) > 4)
 				new_path[off + 4] = '\0';
-			    if (rename(path, new_path) == 0) {
+			    if (LYRenameFile(path, new_path) == 0) {
 				FREE(path);
 				path = new_path;
 			    } else {
@@ -536,8 +624,6 @@ HTStream *HTFWriter_new(FILE *fp)
     if (me == NULL)
 	outofmem(__FILE__, "HTFWriter_new");
 
-    assert(me != NULL);
-
     me->isa = &HTFWriter;
 
     me->fp = fp;
@@ -635,8 +721,6 @@ HTStream *HTSaveAndExecute(HTPresentation *pres,
     if (me == NULL)
 	outofmem(__FILE__, "HTSaveAndExecute");
 
-    assert(me != NULL);
-
     me->isa = &HTFWriter;
     me->input_format = pres->rep;
     me->output_format = pres->rep_out;
@@ -698,7 +782,7 @@ HTStream *HTSaveAndExecute(HTPresentation *pres,
 	 * Check for a suffix.
 	 * Save the file under a suitably suffixed name.
 	 */
-	if (!strcasecomp(pres->rep->name, "text/html")) {
+	if (!strcasecomp(pres->rep->name, STR_HTML)) {
 	    suffix = HTML_SUFFIX;
 	} else if (!strncasecomp(pres->rep->name, "text/", 5)) {
 	    suffix = TEXT_SUFFIX;
@@ -771,8 +855,6 @@ HTStream *HTSaveToFile(HTPresentation *pres,
 
     if (ret_obj == NULL)
 	outofmem(__FILE__, "HTSaveToFile");
-
-    assert(ret_obj != NULL);
 
     ret_obj->isa = &HTFWriter;
     ret_obj->remove_command = NULL;
@@ -854,7 +936,7 @@ HTStream *HTSaveToFile(HTPresentation *pres,
 	 * Check for a suffix.
 	 * Save the file under a suitably suffixed name.
 	 */
-	if (!strcasecomp(pres->rep->name, "text/html")) {
+	if (!strcasecomp(pres->rep->name, STR_HTML)) {
 	    suffix = HTML_SUFFIX;
 	} else if (!strncasecomp(pres->rep->name, "text/", 5)) {
 	    suffix = TEXT_SUFFIX;
@@ -921,7 +1003,7 @@ HTStream *HTSaveToFile(HTPresentation *pres,
     StrAllocCopy(anchor->FileCache, fnam);
   Prepend_BASE:
     if (LYPrependBaseToSource &&
-	!strncasecomp(pres->rep->name, "text/html", 9) &&
+	!strncasecomp(pres->rep->name, STR_HTML, 9) &&
 	!anchor->content_encoding) {
 	/*
 	 * Add the document's base as a BASE tag at the top of the file, so
@@ -965,7 +1047,7 @@ HTStream *HTSaveToFile(HTPresentation *pres,
 	FREE(temp);
     }
     if (LYPrependCharsetToSource &&
-	!strncasecomp(pres->rep->name, "text/html", 9) &&
+	!strncasecomp(pres->rep->name, STR_HTML, 9) &&
 	!anchor->content_encoding) {
 	/*
 	 * Add the document's charset as a META CHARSET tag at the top of the
@@ -981,7 +1063,8 @@ HTStream *HTSaveToFile(HTPresentation *pres,
 	    StrAllocCopy(temp, anchor->charset);
 	    LYRemoveBlanks(temp);
 	    fprintf(ret_obj->fp,
-		    "<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=%s\">\n\n",
+		    "<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"" STR_HTML
+		    "; charset=%s\">\n\n",
 		    temp);
 	}
 	FREE(temp);
@@ -1019,7 +1102,7 @@ HTStream *HTCompressed(HTPresentation *pres,
 	 * We have no idea what we're dealing with, so treat it as a binary
 	 * stream.  - FM
 	 */
-	format = HTAtom_for("application/octet-stream");
+	format = HTAtom_for(STR_BINARY);
 	me = HTStreamStack(format, pres->rep_out, sink, anchor);
 	return me;
     }
@@ -1094,8 +1177,8 @@ HTStream *HTCompressed(HTPresentation *pres,
 	HTOutputFormat == HTAtom_for("www/download") ||		/* download */
 	!strcasecomp(pres->rep_out->name, "www/download") ||	/* download */
 	(traversal &&		/* only handle html or plain text for traversals */
-	 strcasecomp(anchor->content_type, "text/html") &&
-	 strcasecomp(anchor->content_type, "text/plain"))) {
+	 strcasecomp(anchor->content_type, STR_HTML) &&
+	 strcasecomp(anchor->content_type, STR_PLAINTEXT))) {
 	/*
 	 * Cast the Content-Encoding to a Content-Type and pass it back to be
 	 * handled as that type.  - FM
@@ -1129,8 +1212,6 @@ HTStream *HTCompressed(HTPresentation *pres,
     if (me == NULL)
 	outofmem(__FILE__, "HTCompressed");
 
-    assert(me != NULL);
-
     me->isa = &HTFWriter;
     me->input_format = pres->rep;
     me->output_format = pres->rep_out;
@@ -1152,14 +1233,14 @@ HTStream *HTCompressed(HTPresentation *pres,
      * Get a new temporary filename and substitute a suitable suffix.  - FM
      */
     middle = NULL;
-    if (!strcasecomp(anchor->content_type, "text/html")) {
+    if (!strcasecomp(anchor->content_type, STR_HTML)) {
 	middle = HTML_SUFFIX;
 	middle++;		/* point to 'h' of .htm(l) - kw */
     } else if (!strncasecomp(anchor->content_type, "text/", 5)) {
-	middle = TEXT_SUFFIX + 1;
+	middle = &TEXT_SUFFIX[1];
     } else if (!strncasecomp(anchor->content_type, "application/", 12)) {
 	/* FIXME: why is this BEFORE HTFileSuffix? */
-	middle = BIN_SUFFIX + 1;
+	middle = &BIN_SUFFIX[1];
     } else if ((suffix =
 		HTFileSuffix(HTAtom_for(anchor->content_type), NULL)) &&
 	       *suffix == '.') {
@@ -1275,8 +1356,6 @@ HTStream *HTDumpToStdout(HTPresentation *pres GCC_UNUSED,
 
     if (ret_obj == NULL)
 	outofmem(__FILE__, "HTDumpToStdout");
-
-    assert(ret_obj != NULL);
 
     ret_obj->isa = &HTFWriter;
     ret_obj->remove_command = NULL;

@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTString.h,v 1.38 2013/11/28 11:09:55 tom Exp $
+ * $LynxId: HTString.h,v 1.41 2021/06/09 19:30:55 tom Exp $
  *						String handling for libwww
  *                                         STRINGS
  *                                            
@@ -90,14 +90,14 @@ extern "C" {
     extern char *HTNextTok(char **pstr,
 			   const char *delims, const char *bracks, char *found);
 
-    extern char *HTSprintf(char **pstr, const char *fmt,...) GCC_PRINTFLIKE(2,3);
-    extern char *HTSprintf0(char **pstr, const char *fmt,...) GCC_PRINTFLIKE(2,3);
+    extern char *HTSprintf(char **pstr, const char *fmt, ...) GCC_PRINTFLIKE(2,3);
+    extern char *HTSprintf0(char **pstr, const char *fmt, ...) GCC_PRINTFLIKE(2,3);
 
 #if defined(LY_FIND_LEAKS)	/* private otherwise */
     extern char *StrAllocVsprintf(char **pstr,
 				  size_t len,
 				  const char *fmt,
-				  va_list * ap);
+				  va_list *ap);
 #endif
 
 #if defined(__CYGWIN__)
@@ -146,7 +146,7 @@ extern "C" {
 
 #define BINEQ(a,b)    (HTSABEql(a,b))	/* like STREQ() */
 
-#define isBEmpty(p)   ((p) == 0 || BStrLen(p) == 0)
+#define isBEmpty(p)   ((p) == 0 || BStrData(p) == 0 || BStrLen(p) == 0)
 
 #define BStrAlloc(d,n)   HTSABAlloc( &(d), n)
 #define BStrCopy(d,s)    HTSABCopy( &(d), BStrData(s), BStrLen(s))
@@ -156,7 +156,7 @@ extern "C" {
 #define BStrCat0(d,s)    HTSABCat0( &(d), s)
 #define BStrFree(d)      HTSABFree( &(d))
 
-    extern bstring *HTBprintf(bstring **pstr, const char *fmt,...) GCC_PRINTFLIKE(2,3);
+    extern bstring *HTBprintf(bstring **pstr, const char *fmt, ...) GCC_PRINTFLIKE(2,3);
 
     extern void trace_bstring(bstring *data);
     extern void trace_bstring2(const char *text, int size);

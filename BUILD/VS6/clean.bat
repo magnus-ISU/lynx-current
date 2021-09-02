@@ -1,5 +1,5 @@
 @echo off
-@rem $LynxId: clean.bat,v 1.2 2007/07/01 21:52:45 tom Exp $
+@rem $LynxId: clean.bat,v 1.1 2007/07/01 21:52:45 tom Exp $
 @rem Remove all build-products in subdirectories, leaving only sources (and unrecognized types)
 
 del/f/s/q *.aps

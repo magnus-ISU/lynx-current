@@ -1,6 +1,6 @@
                              Lynx README file
 
-Lynx Version 2.8.8 is the latest release (February 2014).
+Lynx Version 2.8.9 is the latest release (July 2018).
 See the CHANGES file for a complete record of all changes and bug fixes.
 New releases are announced on the lynx-dev mailing list (see below).
 
@@ -10,7 +10,7 @@ To use this package, you need a compiler & a bit of experience
 at very simple programming.  If you just want something which will work
 `out-of-the-box', you can get pre-compiled versions of Lynx
 by following the links from
-        <URL: http://lynx.isc.org/> ;
+        <URL: https://lynx.invisible-island.net/resources.html/> ;
 
 For DOS or Windows, go to
         <URL: http://www.fdisk.com/doslynx/lynxport.htm>.
@@ -35,13 +35,13 @@ WHAT IS LYNX?
 HOW TO GET LYNX
 
    For the latest release of Lynx go to:
-       <URL: http://lynx.isc.org/release>;
-       <URL: ftp://lynx.isc.org/release>;
+       <URL: https://lynx.invisible-island.net/release>;
+       <URL: ftp://ftp.invisible-island.net/lynx/tarballs>;
 
    The latest development version is at:
-       <URL: http://lynx.isc.org/current>.
+       <URL: https://lynx.invisible-island.net/current/>.
 
-   The Lynx homepage is <URL: http://lynx.isc.org/>.
+   The Lynx homepage is <URL: https://lynx.invisible-island.net/>.
    The on-line help page (enter `h') has links to many useful things.
 
 LICENSE
@@ -150,5 +150,5 @@ LYNX-DEV MAILING LIST
 
 ------------------------------------------------------------------------------
 -- vile:txtmode fc=72 noti
--- $LynxId: README,v 1.30 2014/02/13 13:25:42 tom Exp $
+-- $LynxId: README,v 1.35 2018/07/09 20:00:20 tom Exp $
 ------------------------------------------------------------------------------

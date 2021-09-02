@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYMainLoop.c,v 1.230 2013/11/28 11:20:34 tom Exp $
+ * $LynxId: LYMainLoop.c,v 1.244 2021/07/29 20:33:05 tom Exp $
  */
 #include <HTUtils.h>
 #include <HTAccess.h>
@@ -683,7 +683,7 @@ static void do_check_goto_URL(bstring **user_input,
 	    newdoc.isHEAD = FALSE;
 	    /*
 	     * Might be an anchor in the same doc from a POST form.  If so,
-	     * dont't free the content.  -- FM
+	     * don't free the content.  -- FM
 	     */
 	    if (are_different(&curdoc, &newdoc)) {
 		/*
@@ -725,7 +725,7 @@ static BOOL do_check_recall(int ch,
 
     for (;;) {
 #ifdef WIN_EX			/* 1998/10/11 (Sun) 10:41:05 */
-	int len = strlen((*user_input)->str);
+	int len = (int) strlen((*user_input)->str);
 
 	if (len >= 3) {
 	    if (len < MAX_LINE - 1
@@ -1489,7 +1489,7 @@ static int handle_LYK_ACTIVATE(int *c,
 	 ? (F_SUBMITLIKE((form)->type)) \
 	 : ((form)->type == F_RESET_TYPE))
 
-static FormInfo *FindFormAction(FormInfo * given, BOOLEAN submit)
+static FormInfo *FindFormAction(FormInfo * given, int submit)
 {
     FormInfo *result = NULL;
     FormInfo *fi;
@@ -1512,7 +1512,7 @@ static FormInfo *FindFormAction(FormInfo * given, BOOLEAN submit)
     return result;
 }
 
-static FormInfo *MakeFormAction(FormInfo * given, BOOLEAN submit)
+static FormInfo *MakeFormAction(FormInfo * given, int submit)
 {
     FormInfo *result = 0;
 
@@ -1540,39 +1540,41 @@ static FormInfo *MakeFormAction(FormInfo * given, BOOLEAN submit)
 
 static void handle_LYK_SUBMIT(int cur, DocInfo *doc, BOOLEAN *refresh_screen)
 {
-    FormInfo *form = FindFormAction(links[cur].l_form, TRUE);
+    FormInfo *form = FindFormAction(links[cur].l_form, 1);
     FormInfo *make = NULL;
     char *save_submit_action = NULL;
 
     if (form == 0) {
-	make = MakeFormAction(links[cur].l_form, TRUE);
+	make = MakeFormAction(links[cur].l_form, 1);
 	form = make;
     }
 
-    StrAllocCopy(save_submit_action, form->submit_action);
-    form->submit_action = HTPrompt(EDIT_SUBMIT_URL, form->submit_action);
+    if (form != 0) {
+	StrAllocCopy(save_submit_action, form->submit_action);
+	form->submit_action = HTPrompt(EDIT_SUBMIT_URL, form->submit_action);
 
-    if (isEmpty(form->submit_action) ||
-	(!isLYNXCGI(form->submit_action) &&
-	 StrNCmp(form->submit_action, "http", 4))) {
-	HTUserMsg(FORM_ACTION_NOT_HTTP_URL);
-    } else {
-	HTInfoMsg(SUBMITTING_FORM);
-	HText_SubmitForm(form, doc, form->name, form->value);
-	*refresh_screen = TRUE;
+	if (isEmpty(form->submit_action) ||
+	    (!isLYNXCGI(form->submit_action) &&
+	     StrNCmp(form->submit_action, "http", 4))) {
+	    HTUserMsg(FORM_ACTION_NOT_HTTP_URL);
+	} else {
+	    HTInfoMsg(SUBMITTING_FORM);
+	    HText_SubmitForm(form, doc, form->name, form->value);
+	    *refresh_screen = TRUE;
+	}
+
+	StrAllocCopy(form->submit_action, save_submit_action);
+	FREE(make);
     }
-
-    StrAllocCopy(form->submit_action, save_submit_action);
-    FREE(make);
 }
 
 static void handle_LYK_RESET(int cur, BOOLEAN *refresh_screen)
 {
-    FormInfo *form = FindFormAction(links[cur].l_form, FALSE);
+    FormInfo *form = FindFormAction(links[cur].l_form, 0);
     FormInfo *make = NULL;
 
     if (form == 0) {
-	make = MakeFormAction(links[cur].l_form, FALSE);
+	make = MakeFormAction(links[cur].l_form, 0);
 	form = make;
     }
 
@@ -2163,7 +2165,8 @@ static int handle_LYK_DOWNLOAD(int *cmd,
 		    }
 		    return 0;
 		}
-		if (isLYNXOPTIONS(links[curdoc.link].l_form->submit_action)) {
+		if (isEmpty(links[curdoc.link].l_form->submit_action) ||
+		    isLYNXOPTIONS(links[curdoc.link].l_form->submit_action)) {
 		    if (*old_c != real_c) {
 			*old_c = real_c;
 			HTUserMsg(NO_DOWNLOAD_SPECIAL);
@@ -2204,7 +2207,7 @@ static int handle_LYK_DOWNLOAD(int *cmd,
 	    }
 
 	} else if (lynx_edit_mode && !no_dired_support &&
-		   !strstr(links[curdoc.link].lname, "/SugFile=")) {
+		   !LYstrstr(links[curdoc.link].lname, "/SugFile=")) {
 	    /*
 	     * Don't bother making a /tmp copy of the local file.
 	     */
@@ -3528,7 +3531,8 @@ static char *urlencode(char *str)
 	result = malloc(strlen(str) * 3 + 1);
 	ptr = result;
 
-	assert(result);
+	if (result == NULL)
+	    outofmem(__FILE__, "urlencode");
 
 	while ((ch = UCH(*str++)) != 0) {
 	    if (ch == ' ') {
@@ -3562,9 +3566,9 @@ static BOOLEAN check_JUMP_param(char **url_template)
     int code = TRUE;
     bstring *input = NULL;
 
-    CTRACE((tfp, "check_JUMP_param: %s\n", result));
+    CTRACE((tfp, "check_JUMP_param: %s\n", NONNULL(result)));
 
-    while ((subs = strstr(result, "%s")) != 0) {
+    while (result != NULL && (subs = strstr(result, "%s")) != 0) {
 	char prompt[MAX_LINE];
 	RecallType recall = NORECALL;
 
@@ -3584,7 +3588,7 @@ static BOOLEAN check_JUMP_param(char **url_template)
 	    HTInfoMsg(CANCELLED);
 	    code = FALSE;
 	    break;
-	} else if ((encoded = urlencode(input->str)) != '\0') {
+	} else if ((encoded = urlencode(input->str)) != NULL && *encoded != '\0') {
 	    int subs_at = (int) (subs - result);
 	    int fill_in = (int) strlen(encoded) - 2;
 	    size_t have = strlen(result);
@@ -3955,7 +3959,7 @@ static BOOLEAN handle_LYK_OPTIONS(int *cmd,
 		      strcmp(CurrentNegoLanguage, NonNull(language)) ||
 		      strcmp(CurrentNegoCharset, NonNull(pref_charset))) &&
 		     (StrNCmp(curdoc.address, "http", 4) == 0 ||
-		      !isLYNXCGI(curdoc.address) == 0))) {
+		      isLYNXCGI(curdoc.address)))) {
 		    /*
 		     * An option has changed which may influence content
 		     * negotiation, and the resource is from a http or https or
@@ -6436,7 +6440,7 @@ int mainloop(void)
 			HTAtom *encoding;
 
 			if (HTFileFormat(temp, &encoding, NULL) != WWW_HTML) {
-			    HTSetSuffix(temp, "text/html", "8bit", 1.0);
+			    HTSetSuffix(temp, STR_HTML, "8bit", 1.0);
 			}
 		    }
 		    if ((cp = strrchr(temp, '/')) != NULL) {
@@ -6722,7 +6726,7 @@ int mainloop(void)
 		    p = links[curdoc.link].lname;
 		}
 
-		if (strlen(p) < (sizeof(sjis_buff) / 10)) {
+		if (strlen(p) < ((sizeof(sjis_buff) / 2) - 1)) {
 		    strcpy(temp_buff, p);
 		    if (StrChr(temp_buff, '%')) {
 			HTUnEscape(temp_buff);
@@ -6783,26 +6787,11 @@ int mainloop(void)
 	     */
 	    if (crawl && crawl_ok) {
 		crawl_ok = FALSE;
-        if (LYOutputFileNameMode == 0 || !curdoc.title || strlen(curdoc.title) == 0) {
 #ifdef FNAMES_8_3
 		sprintf(cfile, "lnk%05d.dat", crawl_count);
 #else
 		sprintf(cfile, "lnk%08d.dat", crawl_count);
 #endif /* FNAMES_8_3 */
-        } else {
-            snprintf(cfile, 128, "%s.dat", curdoc.title);
-            sprintf(cfile + 123, ".dat");
-            int i = 0;
-            for (; i < 128 && cfile[i] != 0; i++) {
-                if (cfile[i] == '/' || cfile[i] == '\\' || cfile == '?'
-                        || cfile[i] == '%' || cfile[i] == '*' || cfile[i] == ':'
-                        || cfile[i] == '|' || cfile[i] == '"' || cfile[i] == '<'
-                        || cfile[i] == '>') {
-                    cfile[i] = '_';
-                }
-            }
-        }
-
 		crawl_count = crawl_count + 1;
 		if ((cfp = LYNewTxtFile(cfile)) != NULL) {
 		    print_crawl_to_fd(cfp, curdoc.address, curdoc.title);
@@ -7892,7 +7881,7 @@ static void HTGotoURLs_free(void)
  */
 void HTAddGotoURL(char *url)
 {
-    char *copy = NULL;
+    char *mycopy = NULL;
     char *old;
     HTList *cur;
 
@@ -7900,26 +7889,26 @@ void HTAddGotoURL(char *url)
 	return;
 
     CTRACE((tfp, "HTAddGotoURL %s\n", url));
-    StrAllocCopy(copy, url);
+    StrAllocCopy(mycopy, url);
 
     if (!Goto_URLs) {
 	Goto_URLs = HTList_new();
 #ifdef LY_FIND_LEAKS
 	atexit(HTGotoURLs_free);
 #endif
-	HTList_addObject(Goto_URLs, copy);
+	HTList_addObject(Goto_URLs, mycopy);
 	return;
     }
 
     cur = Goto_URLs;
     while (NULL != (old = (char *) HTList_nextObject(cur))) {
-	if (!strcmp(old, copy)) {
+	if (!strcmp(old, mycopy)) {
 	    HTList_removeObject(Goto_URLs, old);
 	    FREE(old);
 	    break;
 	}
     }
-    HTList_addObject(Goto_URLs, copy);
+    HTList_addObject(Goto_URLs, mycopy);
 
     return;
 }
@@ -8146,7 +8135,7 @@ static void status_link(char *curlink_name,
     prefix = (int) strlen(format);
     length = (int) strlen(curlink_name);
 
-    if (prefix > MAX_STATUS || prefix >= MAX_LINE - 1) {
+    if (prefix > MAX_STATUS || prefix >= MAX_LINE - 10) {
 	_user_message("%s", format);	/* no room for url */
     } else {
 	sprintf(format + prefix, "%%.%ds", MAX_STATUS - prefix);

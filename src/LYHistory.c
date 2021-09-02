@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYHistory.c,v 1.86 2013/10/19 00:46:43 tom Exp $
+ * $LynxId: LYHistory.c,v 1.94 2021/06/09 22:55:43 tom Exp $
  */
 #include <HTUtils.h>
 #include <HTTP.h>
@@ -35,7 +35,7 @@
 HTList *Visited_Links = NULL;	/* List of safe popped docs. */
 int Visited_Links_As = VISITED_LINKS_AS_LATEST | VISITED_LINKS_REVERSE;
 
-static VisitedLink *PrevVisitedLink = NULL;	/* NULL on auxillary */
+static VisitedLink *PrevVisitedLink = NULL;	/* NULL on auxiliary */
 static VisitedLink *PrevActiveVisitedLink = NULL;	/* Last non-auxillary */
 static VisitedLink Latest_first;
 static VisitedLink Latest_last;
@@ -82,7 +82,7 @@ static void Visited_Links_free(void)
 static void trace_history(const char *tag)
 {
     if (TRACE) {
-	CTRACE((tfp, "HISTORY %s %d/%d (%d extra)\n",
+	CTRACE((tfp, "HISTORY %s %d/%u (%d extra)\n",
 		tag, nhist, size_history, nhist_extra));
 	CTRACE_FLUSH(tfp);
     }
@@ -180,8 +180,6 @@ void LYAddVisitedLink(DocInfo *doc)
 
     if ((tmp = typecalloc(VisitedLink)) == NULL)
 	outofmem(__FILE__, "LYAddVisitedLink");
-
-    assert(tmp != NULL);
 
     StrAllocCopy(tmp->address, doc->address);
     LYformTitle(&(tmp->title), title);
@@ -340,31 +338,26 @@ static int are_identical(HistInfo * doc, DocInfo *doc1)
 	    && doc1->isHEAD == doc->hdoc.isHEAD);
 }
 
-void LYAllocHistory(int entries)
+void LYAllocHistory(unsigned entries)
 {
-    CTRACE((tfp, "LYAllocHistory %d vs %d\n", entries, size_history));
+    CTRACE((tfp, "LYAllocHistory %u vs %u\n", entries, size_history));
     if (entries + 1 >= size_history) {
-	unsigned want;
-	int save = size_history;
+	size_t want;
+	unsigned save = size_history;
 
-	size_history = (entries + 2) * 2;
-	want = (unsigned) size_history *(unsigned) sizeof(*history);
+	size_history += (entries + 2) * 2;
+	want = ((size_t) size_history) * sizeof(*history);
 
 	if (history == 0) {
-	    history = typeMallocn(HistInfo, want);
+	    history = typecallocn(HistInfo, want);
 	} else {
 	    history = typeRealloc(HistInfo, history, want);
+	    memset(&history[save], 0, size_history - save);
 	}
 	if (history == 0)
 	    outofmem(__FILE__, "LYAllocHistory");
-
-	assert(history != NULL);
-
-	while (save < size_history) {
-	    memset(&history[save++], 0, sizeof(history[0]));
-	}
     }
-    CTRACE((tfp, "...LYAllocHistory %d vs %d\n", entries, size_history));
+    CTRACE((tfp, "...LYAllocHistory %u vs %u\n", entries, size_history));
 }
 
 /*
@@ -414,7 +407,7 @@ int LYpush(DocInfo *doc, int force_push)
 	HDOC(nhist).link = doc->link;
 	HDOC(nhist).line = doc->line;
 	nhist_extra--;
-	LYAllocHistory(nhist);
+	LYAllocHistory((unsigned) nhist);
 	nhist++;
 	trace_history("LYpush: just move the cursor");
 	return 1;
@@ -431,7 +424,7 @@ int LYpush(DocInfo *doc, int force_push)
     /*
      * OK, push it...
      */
-    LYAllocHistory(nhist);
+    LYAllocHistory((unsigned) nhist);
     HDOC(nhist).link = doc->link;
     HDOC(nhist).line = doc->line;
 
@@ -575,7 +568,7 @@ void LYpop(DocInfo *doc)
 void LYhist_prev(DocInfo *doc)
 {
     trace_history("LYhist_prev");
-    if (nhist > 0 && (nhist_extra || nhist < size_history)) {
+    if (nhist > 0 && (nhist_extra || (unsigned) nhist < size_history)) {
 	nhist--;
 	nhist_extra++;
 	LYpop_num(nhist, doc);
@@ -612,7 +605,7 @@ int LYhist_next(DocInfo *doc, DocInfo *newdoc)
     /* Store the new position */
     HDOC(nhist).link = doc->link;
     HDOC(nhist).line = doc->line;
-    LYAllocHistory(nhist);
+    LYAllocHistory((unsigned) nhist);
     nhist++;
     nhist_extra--;
     LYpop_num(nhist, newdoc);
@@ -627,7 +620,7 @@ int LYhist_next(DocInfo *doc, DocInfo *newdoc)
 void LYpop_num(int number,
 	       DocInfo *doc)
 {
-    if (number >= 0 && nhist + nhist_extra > number) {
+    if (number >= 0 && (nhist + nhist_extra) > number) {
 	doc->link = HDOC(number).link;
 	doc->line = HDOC(number).line;
 	StrAllocCopy(doc->title, HDOC(number).title);
@@ -1100,7 +1093,7 @@ static int LYLoadMESSAGES(const char *arg GCC_UNUSED,
      */
     target = HTStreamStack(format_in, format_out, sink, anAnchor);
 
-    if (!target || target == NULL) {
+    if (target == NULL) {
 	HTSprintf0(&buf, CANNOT_CONVERT_I_TO_O,
 		   HTAtom_name(format_in), HTAtom_name(format_out));
 	HTAlert(buf);
@@ -1116,7 +1109,7 @@ static int LYLoadMESSAGES(const char *arg GCC_UNUSED,
     /*
      * This page is a list of messages in display character set.
      */
-    HTSprintf0(&buf, "<META %s content=\"text/html;charset=%s\">\n",
+    HTSprintf0(&buf, "<META %s content=\"" STR_HTML ";charset=%s\">\n",
 	       "http-equiv=\"content-type\"",
 	       LYCharSet_UC[current_char_set].MIMEname);
     PUTS(buf);

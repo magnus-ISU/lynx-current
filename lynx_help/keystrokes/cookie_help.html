@@ -1,21 +1,28 @@
-<!-- $LynxId: cookie_help.html,v 1.9 2014/01/07 09:14:46 tom Exp $ -->
+<!-- $LynxId: cookie_help.html,v 1.12 2021/07/01 21:02:38 tom Exp $ -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
-
 <html>
 <head>
   <meta name="generator" content=
-  "HTML Tidy for Linux (vers 25 March 2009), see www.w3.org">
-
+  "HTML Tidy for HTML5 for Linux version 5.6.0">
   <title>Help on the Cookie Jar Page</title>
   <link rev="made" href="mailto:lynx-dev@nongnu.org">
   <meta http-equiv="Content-Type" content=
   "text/html; charset=us-ascii">
   <meta name="description" content=
   "Lynx provides a page show shows information about all of the unexpired cookies, including their fully qualified domain name, expiration time and name/value pairs.">
-  </head>
-
+</head>
 <body>
-  <h2>Overview</h2>
+  <div class="nav">
+    <ul>
+      <li><a href="#overview">Overview</a></li>
+
+      <li><a href="#showing_cookies">Cookie Details Shown</a></li>
+
+      <li><a href="#removing_cookies">Removing Cookies</a></li>
+    </ul>
+  </div>
+
+  <h2><a name="overview" id="overview">Overview</a></h2>
 
   <p><strong>Lynx</strong>'s <em>Cookie Jar Page</em> displays all
   of the unexpired cookies you have accumulated in the hypothetical
@@ -32,11 +39,12 @@
   address tail-matches a <em>domain</em> in the <em>Cookie
   Jar</em>, all its cookies with a <em>path</em> which head-matches
   the path in the URL for that request are included as a
-  <em>Cookie</em> MIME header. The 'allow' setting for accepting
-  cookies from each domain (always, never, or via prompt) also is
-  indicated in the listing.</p>
+  <em>Cookie</em> MIME header. The &ldquo;allow&rdquo; setting for
+  accepting cookies from each domain (always, never, or via prompt)
+  also is indicated in the listing.</p>
 
-  <h2>Cookie Details Shown</h2>
+  <h2><a name="showing_cookies" id="showing_cookies">Cookie Details
+  Shown</a></h2>
 
   <p>The listing also shows the <em>port</em> (normally 80) of the
   URL for the request which caused the cookie to be sent, and
@@ -50,7 +58,8 @@
   <em>Set-Cookie</em> MIME headers, those also are displayed in the
   listing.</p>
 
-  <h2>Removing Cookies</h2>
+  <h2><a name="removing_cookies" id="removing_cookies">Removing
+  Cookies</a></h2>
 
   <p>The <em>domain</em>=value pairs, and each cookie's name=value,
   are links in the listing. Activating a <em>domain</em>=value link
@@ -58,10 +67,10 @@
   <em>domain</em> should be <em>Gobbled</em> (deleted from the
   <em>Cookie Jar</em>), and/or whether the <em>domain</em> entry
   should be <em>Gobbled</em> if all of its cookies have been
-  <em>Gobbled</em>, or whether to change the 'allow' setting for
-  that <em>domain</em>. Activating a cookie's name=value link will
-  cause that particular cookie to be <em>Gobbled</em>. You will be
-  prompted for confirmations of deletions, to avoid any accidental
-  <em>Gobbling</em>.</p>
+  <em>Gobbled</em>, or whether to change the &ldquo;allow&rdquo;
+  setting for that <em>domain</em>. Activating a cookie's
+  name=value link will cause that particular cookie to be
+  <em>Gobbled</em>. You will be prompted for confirmations of
+  deletions, to avoid any accidental <em>Gobbling</em>.</p>
 </body>
 </html>

@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTNews.c,v 1.70 2013/11/28 11:13:46 tom Exp $
+ * $LynxId: HTNews.c,v 1.78 2021/06/09 19:29:36 tom Exp $
  *
  *			NEWS ACCESS				HTNews.c
  *			===========
@@ -44,13 +44,31 @@ int HTNewsMaxChunk = 40;	/* Largest number of articles in one window */
 #endif /* NEWS_AUTH_FILE */
 
 #ifdef USE_SSL
+
+#if defined(LIBRESSL_VERSION_NUMBER)
+/* OpenSSL and LibreSSL version numbers do not correspond */
+#elif (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+#undef  SSL_load_error_strings
+#define SSL_load_error_strings()	/* nothing */
+#endif
+
 static SSL *Handle = NULL;
 static int channel_s = 1;
 
 #define NEWS_NETWRITE(sock, buff, size) \
-	(Handle ? SSL_write(Handle, buff, size) : NETWRITE(sock, buff, size))
+	((Handle != NULL) \
+	 ? SSL_write(Handle, buff, size) \
+	 : NETWRITE(sock, buff, size))
 #define NEWS_NETCLOSE(sock) \
-	{ (void)NETCLOSE(sock); if (Handle) { SSL_free(Handle); Handle = NULL; } }
+	{ \
+	    if ((int)(sock) >= 0) { \
+	        (void)NETCLOSE(sock); \
+	    } \
+	    if (Handle != NULL) { \
+	        SSL_free(Handle); \
+	        Handle = NULL; \
+	    } \
+	}
 static int HTNewsGetCharacter(void);
 
 #define NEXT_CHAR HTNewsGetCharacter()
@@ -501,7 +519,7 @@ static NNTPAuthResult HTHandleAuthInfo(char *host)
 	while (tries) {
 	    if (PassWord == NULL) {
 		HTSprintf0(&msg, gettext("Password for news host '%s':"), host);
-		PassWord = HTPromptPassword(msg);
+		PassWord = HTPromptPassword(msg, NULL);
 		FREE(msg);
 		if (!(PassWord && *PassWord)) {
 		    FREE(PassWord);
@@ -2282,7 +2300,7 @@ static int HTLoadNews(const char *arg,
 	    } else if (*(arg + 5) == '/' && *(arg + 6) != '/') {
 		p1 = (arg + 6);
 	    } else {
-		p1 = (cp + 1);
+		p1 = (cp ? (cp + 1) : (arg + 6));
 	    }
 	    if (!(cp = HTParse(arg, "", PARSE_HOST)) || *cp == '\0') {
 		if (s >= 0 && NewsHost && strcasecomp(NewsHost, HTNewsHost)) {
@@ -2316,7 +2334,7 @@ static int HTLoadNews(const char *arg,
 	    } else if (*(arg + 6) == '/' && *(arg + 7) != '/') {
 		p1 = (arg + 7);
 	    } else {
-		p1 = (cp + 1);
+		p1 = (cp ? (cp + 1) : (arg + 7));
 	    }
 	    if (!(cp = HTParse(arg, "", PARSE_HOST)) || *cp == '\0') {
 		if (s >= 0 && NewsHost && strcasecomp(NewsHost, HTNewsHost)) {
@@ -2350,7 +2368,7 @@ static int HTLoadNews(const char *arg,
 	    } else if (*(arg + 6) != '/') {
 		p1 = (arg + 6);
 	    } else {
-		p1 = (cp + 1);
+		p1 = (cp ? (cp + 1) : (arg + 6));
 	    }
 	    if (!(cp = HTParse(arg, "", PARSE_HOST)) || *cp == '\0') {
 		if (s >= 0 && NewsHost && strcasecomp(NewsHost, HTNewsHost)) {
@@ -2418,16 +2436,18 @@ static int HTLoadNews(const char *arg,
 		    p1 = (strrchr(arg, ':') + 1);
 		}
 	    } else {
+		char *cp2;
+
 		/*
 		 * Reset p1 so that it points to the newsgroup (or a wildcard),
 		 * or the article.
 		 */
-		if (!(cp = strrchr((p1 + 6), '/')) || *(cp + 1) == '\0') {
+		if (!(cp2 = strrchr((p1 + 6), '/')) || *(cp2 + 1) == '\0') {
 		    p1 = "*";
 		    group_wanted = FALSE;
 		    list_wanted = TRUE;
 		} else {
-		    p1 = (cp + 1);
+		    p1 = (cp2 + 1);
 		}
 	    }
 	}
@@ -2997,7 +3017,7 @@ static int HTLoadNews(const char *arg,
 #if 0
     HTAlert(gettext("Sorry, could not load requested news."));
     NXRunAlertPanel(NULL, "Sorry, could not load `%s'.", NULL, NULL, NULL, arg);
-    /* No -- message earlier wil have covered it */
+    /* No -- message earlier will have covered it */
 #endif
 
     if (!(post_wanted || reply_wanted ||

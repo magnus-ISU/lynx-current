@@ -1,4 +1,4 @@
-# $LynxId: makefile.in,v 1.39 2014/01/19 14:42:43 tom Exp $
+# $LynxId: makefile.in,v 1.45 2021/03/14 17:14:26 emil Exp $
 #
 # Makefile for the makeuctb and unicode tables.
 #
@@ -18,17 +18,10 @@ top_builddir	= ../..
 
 CC		= @CC@
 CPP		= @CPP@
-CFLAGS		= @CFLAGS@
-EXTRA_CPPFLAGS	= @EXTRA_CPPFLAGS@
+CFLAGS		= @CFLAGS@ @EXTRA_CPPFLAGS@
 CPPFLAGS	= @CPPFLAGS@
 
-LIBS		= @LIBS@
-LDFLAGS		= @LDFLAGS@
-
-INTLLIB		= @INTLDIR_MAKE@@INTLLIBS@
-
 WWWINC		= WWW/Library/Implementation
-INTLDIR_CPPFLAGS= @INTLDIR_CPPFLAGS@-I$(top_srcdir)/intl
 
 SITE_DEFS	= # FIXME: set in parent makefile
 
@@ -37,7 +30,7 @@ BUILD_CPP	= @BUILD_CPP@
 BUILD_CFLAGS	= @BUILD_CFLAGS@
 BUILD_CPPFLAGS	= @BUILD_CPPFLAGS@ @DEFS@
 
-BUILD_LIBS	= @BUILD_LIBS@ #$(SITE_LIBS)
+BUILD_LIBS	= @BUILD_LIBS@
 BUILD_LDFLAGS	= @BUILD_LDFLAGS@
 
 x		= @EXEEXT@
@@ -50,11 +43,11 @@ CPP_OPTS	= \
 		-I$(top_srcdir)/src/chrtrans \
 		-I$(top_srcdir)/$(WWWINC) \
 		-I$(top_srcdir)/ \
-		$(INTLDIR_CPPFLAGS) $(SITE_DEFS) $(BUILD_CPPFLAGS)
+		$(SITE_DEFS) $(BUILD_CPPFLAGS)
 CC_OPTS		= $(CPP_OPTS) $(BUILD_CFLAGS)
 
 LINT		= @LINT@
-LINTOPTS	=
+LINTOPTS	= @LINT_OPTS@
 
 CTAGS		= @CTAGS@
 
@@ -103,6 +96,7 @@ TABLES= \
  iso13_uni.h \
  iso14_uni.h \
  iso15_uni.h \
+ iso16_uni.h \
  koi8r_uni.h \
  koi8u_uni.h \
  mac_uni.h \
@@ -123,7 +117,7 @@ OBJS		= makeuctb$o
 C_SRC		= $(OBJS:$o=.c)
 
 $(MAKEUCTB) : $(OBJS)
-	$(BUILD_CC) $(CC_OPTS) $(BUILD_LDFLAGS) -o $@ $(OBJS) $(INTLLIB) $(BUILD_LIBS)
+	$(BUILD_CC) $(CC_OPTS) $(BUILD_LDFLAGS) -o $@ $(OBJS) $(BUILD_LIBS)
 
 makeuctb$o : $(srcdir)/UCkd.h $(srcdir)/makeuctb.c
 
@@ -135,7 +129,7 @@ makeuctb$o : $(srcdir)/UCkd.h $(srcdir)/makeuctb.c
 
 .c.i:
 	@RULE_CC@
-	@ECHO_CC@$(BUILD_CPP) -C $(CPP_OPTS) $(srcdir)/$*.c >$@
+	@ECHO_CC@$(BUILD_CPP) $(CPP_OPTS) $(srcdir)/$*.c >$@
 
 .tbl.h:
 	./$(MAKEUCTB) $(srcdir)/$*.tbl $*.h
@@ -176,6 +170,7 @@ iso10_uni.h:		$(srcdir)/iso10_uni.tbl		$(MAKEUCTB)
 iso13_uni.h:		$(srcdir)/iso13_uni.tbl		$(MAKEUCTB)
 iso14_uni.h:		$(srcdir)/iso14_uni.tbl		$(MAKEUCTB)
 iso15_uni.h:		$(srcdir)/iso15_uni.tbl		$(MAKEUCTB)
+iso16_uni.h:		$(srcdir)/iso16_uni.tbl		$(MAKEUCTB)
 koi8r_uni.h:		$(srcdir)/koi8r_uni.tbl		$(MAKEUCTB)
 koi8u_uni.h:		$(srcdir)/koi8u_uni.tbl		$(MAKEUCTB)
 mac_uni.h:		$(srcdir)/mac_uni.tbl		$(MAKEUCTB)

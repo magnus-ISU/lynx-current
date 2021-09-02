@@ -1,5 +1,5 @@
 /*
- * $LynxId: HTWSRC.c,v 1.29 2013/05/01 22:32:59 tom Exp $
+ * $LynxId: HTWSRC.c,v 1.31 2020/01/21 22:05:46 tom Exp $
  *
  *			Parse WAIS Source file			HTWSRC.c
  *			======================
@@ -303,7 +303,7 @@ static void give_parameter(HTStream *me, int p)
     }
 }
 
-/*			Generate Outout
+/*			Generate Output
  *			===============
  */
 static void WSRC_gen_html(HTStream *me, int source_file)
@@ -469,8 +469,6 @@ HTStream *HTWSRCConvert(HTPresentation *pres, HTParentAnchor *anchor,
 
     if (!me)
 	outofmem(__FILE__, "HTWSRCConvert");
-
-    assert(me != NULL);
 
     me->isa = &WSRCParserClass;
     me->target = HTML_new(anchor, pres->rep_out, sink);

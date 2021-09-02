@@ -1,5 +1,5 @@
 /*
- * $LynxId: LYLeaks.h,v 1.14 2012/02/10 00:15:56 tom Exp $
+ * $LynxId: LYLeaks.h,v 1.19 2020/01/21 22:05:46 tom Exp $
  */
 #ifndef __LYLEAKS_H
 /*
@@ -15,7 +15,7 @@
  *  Purpose:		Header to convert requests for allocation to Lynx
  *			custom functions to track memory leaks.
  *  Remarks/Portability/Dependencies/Restrictions:
- *	For the stdlib.h allocation functions to be overriden by the
+ *	For the stdlib.h allocation functions to be overridden by the
  *		Lynx memory tracking functions all modules allocating,
  *		freeing, or resizing memory must have LY_FIND_LEAKS
  *		defined before including this file.
@@ -77,7 +77,8 @@ extern "C" {
 #endif				/* VMS */
 /*
  * Data structures
- */ typedef struct SourceLocation_tag {
+ */
+    typedef struct SourceLocation_tag {
 	/*
 	 * The file name and line number of where an event took place.
 	 */
@@ -119,6 +120,7 @@ extern "C" {
 /*
  *  Global variable declarations
  */
+    extern char LYLeaksPath[];
 
 /*
  *  Macros
@@ -152,6 +154,11 @@ extern "C" {
 #undef free
 #endif				/* free */
 #define free(vp_alloced) LYLeakFree(vp_alloced, __FILE__, __LINE__)
+
+#ifdef strdup
+#undef strdup
+#endif				/* free */
+#define strdup(vp_alloced) LYLeakStrdup(vp_alloced, __FILE__, __LINE__)
 
 /*
  * Added the following two defines to track Lynx's frequent use of those
@@ -247,6 +254,9 @@ extern "C" {
     extern void LYLeakFree(void *vp_alloced,
 			   const char *cp_File,
 			   const short ssi_Line);
+    extern char *LYLeakStrdup(const char *src,
+			      const char *cp_File,
+			      const short ssi_Line);
     extern char *LYLeakSACopy(char **dest,
 			      const char *src,
 			      const char *cp_File,
@@ -286,7 +296,7 @@ extern "C" {
  * Trick to get tracking of var arg functions without relying on var arg
  * preprocessor macros:
  */
-    typedef char *HTSprintflike(char **, const char *,...);
+    typedef char *HTSprintflike(char **, const char *, ...);
     extern HTSprintflike *Get_htsprintf_fn(const char *cp_File,
 					   const short ssi_Line);
     extern HTSprintflike *Get_htsprintf0_fn(const char *cp_File,
