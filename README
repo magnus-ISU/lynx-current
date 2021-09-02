@@ -1,7 +1,15 @@
+This github repository is on version 2.9.0dev.9, which is the download of
+lynx-cur.tar.gz as of 2021 Aug 02. The makefile installs under `/usr/local/bin/`,
+`/usr/local/share/man/man1/`, and `/usr/local/etc/` for the default configuration,
+at least on my arch linux.
+
+To build, run `./configure; make`. To install, run `make install` as root.
+
+The original README seems horribly out of date, but it follows:
+
                              Lynx README file
 
-Lynx Version 2.8.9 is the latest release (July 2018).  
-This github repository is on version 2.9.0dev.9  
+Lynx Version 2.8.9 is the latest release (July 2018).
 See the CHANGES file for a complete record of all changes and bug fixes.
 New releases are announced on the lynx-dev mailing list (see below).
 
