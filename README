@@ -3,9 +3,11 @@ lynx-cur.tar.gz as of 2021 Aug 02. The makefile installs under `/usr/local/bin/`
 `/usr/local/share/man/man1/`, and `/usr/local/etc/` for the default configuration,
 at least on my arch linux.
 
-To build, run `./configure; make`. To install, run `make install` as root. There are
-some options you need to pass to configure in order to do basic stuff like visit https
-urls, but I need to re-figure that out still.
+To build, you probably want (otherwise see INSTALLATION and files under doc/ )
+
+  ./configure --with-ssl --with-gnutls --with-gnutls-openssl
+  make
+  sudo make install # Or doas, etc
 
 I intend to edit this in a few ways to support XDG_BASE_DIRECTORY, to provide a seperate,
 better configuration by default, to allow numbering of links by letters rather than
