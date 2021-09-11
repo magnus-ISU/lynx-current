@@ -18,6 +18,11 @@ this is forked from.  Why lynx developers don't use git, though, is beyond me (n
 using github I can understand, but to not use one of the most useful tools totally
 makes no sense to me).
 
+Current implemented features (beyond basic lynx):
+
+ - attempt to read a configuration file from $XDG_CONFIG_HOME/lynx/lynx.cfg before using
+ other locations.
+
 The original README seems out of date and less than useful, but it follows:
 
                              Lynx README file
