@@ -1513,12 +1513,22 @@ int main(int argc,
     }
 #endif
 
+    /* Prefer XDG_CONFIG_HOME/lynx/lynx.cfg to other paths */
+    if (isEmpty(lynx_cfg_file)) {
+	if ((cp = LYGetEnv("XDG_CONFIG_HOME"))) {
+	    StrAllocCopy(lynx_cfg_file, cp);
+	    StrAllocCat(lynx_cfg_file, "/lynx/lynx.cfg");
+	}
+    }
+
     /*
      * If we still don't have a configuration file, use the userdefs.h
-     * definition.
+     * definition. Also if the current one is not readable.
      */
-    if (isEmpty(lynx_cfg_file))
+    if (isEmpty(lynx_cfg_file) || !LYCanReadFile(lynx_cfg_file))
 	StrAllocCopy(lynx_cfg_file, LYNX_CFG_FILE);
+
+    fprintf(stderr, "Using config file %s\n", lynx_cfg_file);
 
 #ifndef _WINDOWS		/* avoid the whole ~ thing for now */
     LYTildeExpand(&lynx_cfg_file, FALSE);
