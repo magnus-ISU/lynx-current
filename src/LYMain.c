@@ -1528,8 +1528,6 @@ int main(int argc,
     if (isEmpty(lynx_cfg_file) || !LYCanReadFile(lynx_cfg_file))
 	StrAllocCopy(lynx_cfg_file, LYNX_CFG_FILE);
 
-    fprintf(stderr, "Using config file %s\n", lynx_cfg_file);
-
 #ifndef _WINDOWS		/* avoid the whole ~ thing for now */
     LYTildeExpand(&lynx_cfg_file, FALSE);
 #endif
