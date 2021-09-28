@@ -5085,7 +5085,7 @@ static void handle_LYK_digit(
 	BOOLEAN *force_load,
 	int *old_c,
 	int real_c,
-	BOOLEAN *try_internal GCC_UNUSED
+	BOOLEAN *try_internal GCC_UNUSED,
 	int (*link_selector) (int, int, DocInfo *, int *)
 ) {
     int lindx = ((nlinks > 0) ? curdoc.link : 0);
