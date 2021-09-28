@@ -1,30 +1,3 @@
-This github repository is on version 2.9.0dev.9, which is the download of
-lynx-cur.tar.gz as of 2021 Aug 02. The makefile installs under `/usr/local/bin/`,
-`/usr/local/share/man/man1/`, and `/usr/local/etc/` for the default configuration,
-at least on my arch linux.
-
-To build, you probably want (otherwise see INSTALLATION and files under doc/ )
-
-  ./configure --with-ssl --with-gnutls --with-gnutls-openssl
-  make
-  sudo make install # Or doas, etc
-
-I intend to edit this in a few ways to support XDG_BASE_DIRECTORY, to provide a seperate,
-better configuration by default, to allow numbering of links by letters rather than
-numbers (to follow links without leaving the home row), and maybe some other stuff.
-
-I may also try to keep this up to date with lynx releases, better than the repository
-this is forked from.  Why lynx developers don't use git, though, is beyond me (not
-using github I can understand, but to not use one of the most useful tools totally
-makes no sense to me).
-
-Current implemented features (beyond basic lynx):
-
- - attempt to read a configuration file from $XDG_CONFIG_HOME/lynx/lynx.cfg before using
- other locations.
-
-The original README seems out of date and less than useful, but it follows:
-
                              Lynx README file
 
 Lynx Version 2.8.9 is the latest release (July 2018).
