@@ -19,6 +19,7 @@ Intended features to be added eventually:
 
  - Provide a seperate, better configuration by default (currently see the file `lazy_lynx.cfg`)
  - Allow numbering of links by letters rather than numbers (to follow links from the home row)
+ - Provide shortcuts to quickly copy the current url to the clipboard, or the highlighted url to the clipboard
  - Other stuff? Open an issue
 
 I will also try to keep this up to date with lynx releases, better than the repository
