@@ -3,7 +3,7 @@
 
 #include "LYStructs.h"
 
-#define LAZYLYNX_SCROLL_BY 12
+#define LAZYLYNX_SCROLL_BY 5
 static const char *LINK_NUMBERERS="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 //static const char *LINK_NUMBERERS="123";
 static const unsigned char NUM_NUMBERERS = 52; //This is at compile time so if you modify above string, count its length and put it here. If it is 0 or 1 you will have problems, don't be that guy
