@@ -65,6 +65,8 @@
 
 #include <LYJustify.h>
 
+#include <LazyLynx.h>
+
 #define is_CJK2(b) (IS_CJK_TTY && is8bits(UCH(b)))
 
 #ifdef USE_CURSES_PADS
@@ -5208,7 +5210,16 @@ static void add_link_number(HText *text, TextAnchor *a, int save_position)
 	    HText_appendText(text, link_text);
 	    HText_appendText(text, "]");
 	} else {
-	    sprintf(marker, "[%d]", a->show_number);
+            lazylynx_generate_numid(marker, a->show_number); // TODO there is a bug here  https://www.nice.com.ro/telecomenzi-nice
+                                                             //So it appears that what happens is that it will draw some extra links sometimes,
+                                                             //then go back through and delete the extra ones by searching for \[ [1-9]* \] which
+                                                             //might be the dumbest thing I've ever heard so I'll see if I can figure out how to
+                                                             //stop it, or at least fix it. The hack fix is to put in an unrenderable
+                                                             //character like 0x01 to delimit link headers, then write over them with brackets. Either
+                                                             //way this kind of sucks
+                                                             //I don't think the hack fix is a good idea because it seems like this shit is baked in
+                                                             //like spaghetti in an oven; the solution I will try for is to not produce the blank
+                                                             //messages whatsoever, though that probably only adds to the spaghet
 	    HText_appendText(text, marker);
 	}
 	if (saved_linenum && text->Lines && saved_lastchar != ' ')
@@ -10454,7 +10465,7 @@ int HText_beginInput(HText *text,
 	} else {
 	    a->show_number = a->number;
 	}
-	sprintf(marker, "[%d]", a->show_number);
+	lazylynx_generate_numid(marker, a->show_number);
 	adjust_marker = (int) strlen(marker);
 	if (number_fields_on_left) {
 	    BOOL had_bracket = (BOOL) (f->type == F_OPTION_LIST_TYPE);

@@ -286,6 +286,8 @@ extern "C" {
 #else
 #define LYK_MAXSCREEN_TOGGLE  LYK_UNKNOWN
 #endif
+	,LYK_LAZY_LINK_CLICK
+	,LYK_LAZY_LINK_SELECT
 
     } LYKeymapCode;
 

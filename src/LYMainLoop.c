@@ -42,6 +42,8 @@
 #include <LYMainLoop.h>
 #include <LYPrettySrc.h>
 
+#include <LazyLynx.h>
+
 #ifdef USE_SESSIONS
 #include <LYSession.h>
 #endif
@@ -2406,7 +2408,7 @@ static void handle_LYK_DOWN_LINK(int *follow_col,
 static void handle_LYK_DOWN_TWO(int *old_c,
 				int real_c)
 {
-    handle_LYK_DOWN_xxx(old_c, real_c, 2);
+    handle_LYK_DOWN_xxx(old_c, real_c, LAZYLYNX_SCROLL_BY);
 }
 
 static int handle_LYK_DWIMEDIT(int *cmd,
@@ -4927,7 +4929,7 @@ static void handle_LYK_UP_TWO(int *arrowup,
 			      int *old_c,
 			      int real_c)
 {
-    handle_LYK_UP_xxx(arrowup, old_c, real_c, 2);
+    handle_LYK_UP_xxx(arrowup, old_c, real_c, LAZYLYNX_SCROLL_BY);
 }
 
 static void handle_LYK_VIEW_BOOKMARK(BOOLEAN *refresh_screen,
@@ -5078,12 +5080,14 @@ void handle_LYK_WHEREIS(int cmd,
 /*
  * Get a number from the user and follow that link number.
  */
-static void handle_LYK_digit(int c,
-			     BOOLEAN *force_load,
-			     int *old_c,
-			     int real_c,
-			     BOOLEAN *try_internal GCC_UNUSED)
-{
+static void handle_LYK_digit(
+	int c,
+	BOOLEAN *force_load,
+	int *old_c,
+	int real_c,
+	BOOLEAN *try_internal GCC_UNUSED
+	int (*link_selector) (int, int, DocInfo *, int *)
+) {
     int lindx = ((nlinks > 0) ? curdoc.link : 0);
     int number;
     char *temp = NULL;
@@ -5092,7 +5096,7 @@ static void handle_LYK_digit(int c,
      * Note: Current line may not equal links[cur].line
      */
     number = curdoc.line;
-    switch (follow_link_number(c, lindx, &newdoc, &number)) {
+    switch (link_selector(c, lindx, &newdoc, &number)) {
     case DO_LINK_STUFF:
 	/*
 	 * Follow a normal link.
@@ -7139,7 +7143,13 @@ int mainloop(void)
 	case LYK_7:		/* FALLTHRU */
 	case LYK_8:		/* FALLTHRU */
 	case LYK_9:
-	    handle_LYK_digit(c, &force_load, &old_c, real_c, &try_internal);
+	    handle_LYK_digit(c, &force_load, &old_c, real_c, &try_internal, &follow_link_number);
+	    break;
+	case LYK_LAZY_LINK_CLICK:
+	    handle_LYK_digit(c, &force_load, &old_c, real_c, &try_internal, &lazylynx_follow_link_click);
+	    break;
+	case LYK_LAZY_LINK_SELECT:
+	    handle_LYK_digit(c, &force_load, &old_c, real_c, &try_internal, &lazylynx_follow_link_select);
 	    break;
 
 	case LYK_SOURCE:	/* toggle view source mode */

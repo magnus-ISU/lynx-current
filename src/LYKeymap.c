@@ -628,6 +628,8 @@ static Kcmd revmap[] =
 	    LYK_MAXSCREEN_TOGGLE, "MAXSCREEN_TOGGLE",
 	    "toggle max screen and normal"),
 #endif
+    DATA(LYK_LAZY_LINK_CLICK, "LAZY_LINK_CLICK", "The default behaviour of old link selection"),
+    DATA(LYK_LAZY_LINK_SELECT, "LAZY_LINK_SELECT", "The behaviour when using <num>g with old link selection"),
     DATA(
 	    LYK_UNKNOWN, NULL,
 	    "")
