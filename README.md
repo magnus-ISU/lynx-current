@@ -24,4 +24,4 @@ Intended features to be added eventually:
 I will also try to keep this up to date with lynx releases, better than the repository
 this is forked from.  Why lynx developers don't use git, though, is beyond me.
 
-The original README seems out of date and less than useful, but it can be found as the README file.
+The original README seems out of date and less than useful, but it can be found as the README_LYNX file.
